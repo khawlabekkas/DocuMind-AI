@@ -181,10 +181,11 @@ if (r.conversation_id && onConversationCreated) {
   };
 
 
+
 const detecterTraduction = (texte) => {
   const q = texte.toLowerCase().trim();
 
-  // 1. Détecter la langue demandée (optionnelle pour le résumé)
+  // 1. Langue cible
   let langue = null;
 
   if (/\b(français|francais|french)\b/i.test(q)) langue = "fr";
@@ -192,9 +193,9 @@ const detecterTraduction = (texte) => {
   else if (/\b(arabe|arabic)\b/i.test(q)) langue = "ar";
   else if (/\b(espagnol|spanish)\b/i.test(q)) langue = "es";
 
-  // 2. Détecter les intentions
+  // 2. Intentions
   const traduction =
-    /\b(tradui\w*|traduction|translate|translation)\b/i.test(q);
+    /\b(tradui\w*|traduction|translate\w*|translation)\b/i.test(q);
 
   const explication =
     /\b(expliqu\w*|explication|explain\w*)\b/i.test(q);
@@ -202,38 +203,37 @@ const detecterTraduction = (texte) => {
   const resume =
     /\b(résum\w*|resum\w*|summari\w*|summariz\w*|summary)\b/i.test(q);
 
-  // 3. Détecter une référence à une réponse précédente
+  // 3. Réponse précédente
   const precedent =
     /\b(ta|ton|your|previous|last|dernière|dernier)\b/i.test(q) &&
     /\b(réponse|reponse|explication|answer|response|message|summary|résumé)\b/i.test(q);
 
-  // 4. Traduction du PDF complet
-  const documentComplet =
-    traduction &&
-    !precedent &&
-    /\b(document|pdf|fichier|file)\b/i.test(q) &&
-    /\b(tout|entier|entire|whole|complet|complete|full)\b/i.test(q);
+  // 4. Document PDF
+  const documentPDF =
+    /\b(document|pdf|fichier|file)\b/i.test(q);
 
-  if (documentComplet && langue) {
+  // 5. Traduction d'un PDF
+  // Le mot "entier" n'est plus obligatoire.
+  if (traduction && documentPDF && !precedent && langue) {
     return { type: "pdf", langue };
   }
 
-  // 5. Traduction de la réponse précédente
+  // 6. Traduction d'une réponse précédente
   if (precedent && traduction && langue) {
     return { type: "message", langue };
   }
 
-  // 6. Résumé du document (langue facultative)
+  // 7. Résumé
   if (resume) {
     return { type: "resume", langue };
   }
 
-  // 7. Explication
+  // 8. Explication
   if (explication) {
     return { type: "explication", langue };
   }
 
-  // 8. Autres traductions
+  // 9. Traduction d'un autre texte
   if (traduction && langue) {
     return { type: "texte", langue };
   }

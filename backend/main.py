@@ -30,11 +30,15 @@ from translation_agent import (
     traduire_document,
     exporter_traduction_txt,
     exporter_traduction_pdf,
+    exporter_pdf_mise_en_page,
     LANGUES
 )
 from graph import executer_workflow
 from translation_agent import traduire_texte
 from database import statistiques_dashboard
+from pdf_fidele import exporter_pdf_fidele
+from translation_agent import exporter_pdf_arabe_fidele
+from pdf_arabe_layout import exporter_pdf_arabe_layout
 DOSSIER_UPLOADS = os.getenv("UPLOAD_DIR", "data/uploads")
 
 
@@ -423,23 +427,24 @@ def exporter_pdf(d: DemandeTraduction):
         raise HTTPException(404, "Fichier PDF introuvable.")
 
     try:
-        pages_traduites = traduire_document(
-            chemin_pdf=chemin,
-            langue_cible=d.langue_cible,
-            llm=etat.llm
-        )
-
         import tempfile
 
         with tempfile.TemporaryDirectory() as dossier:
             chemin_pdf = os.path.join(dossier, "traduction.pdf")
 
-            exporter_traduction_pdf(
-                pages_traduites,
-                chemin_pdf,
-                langue_cible=d.langue_cible
-
-            )
+            if d.langue_cible == "ar":
+                exporter_pdf_arabe_layout(
+                    chemin_original=chemin,
+                    chemin_sortie=chemin_pdf,
+                    llm=etat.llm
+                )
+            else:
+                exporter_pdf_fidele(
+                    chemin_original=chemin,
+                    chemin_sortie=chemin_pdf,
+                    langue_cible=d.langue_cible,
+                    llm=etat.llm
+                )
 
             with open(chemin_pdf, "rb") as fichier:
                 contenu = fichier.read()
