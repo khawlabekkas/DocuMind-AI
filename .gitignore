@@ -1,0 +1,42 @@
+
+# Python virtual environments
+venv/
+.venv/
+**/.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Secrets and environment variables
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+
+# Local data, uploaded PDFs, databases and indexes
+data/
+**/data/
+*.db
+*.sqlite
+*.sqlite3
+
+# AI models and caches
+*.pt
+*.pth
+*.onnx
+.cache/
+.cache/**
+
+# Frontend
+node_modules/
+dist/
+**/node_modules/
+**/dist/
+
+# Editor and OS
+.vscode/
+.DS_Store
+Thumbs.db

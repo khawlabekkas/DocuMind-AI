@@ -1,0 +1,510 @@
+/* ===================================================================
+   DocuMind AI — Analytics Dashboard (premium dark theme)
+   All rules are scoped under .documind-dashboard-root to avoid
+   leaking into the chatbot / PDF viewer / global styles.
+   =================================================================== */
+
+.documind-dashboard-root {
+  --dd-bg: #100f14;
+  --dd-card: #1c1922;
+  --dd-card-soft: rgba(28, 25, 34, 0.72);
+  --dd-border: rgba(255, 255, 255, 0.08);
+  --dd-text: #f5f3f7;
+  --dd-muted: #a39db0;
+  --dd-pink: #ec4899;
+  --dd-purple: #8b5cf6;
+  --dd-green: #34d399;
+  --dd-amber: #fbbf24;
+  --dd-red: #f87171;
+  --dd-radius: 20px;
+
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  background: radial-gradient(circle at 15% 0%, #241a2e 0%, var(--dd-bg) 45%) fixed;
+  color: var(--dd-text);
+  font-family: "Inter", system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.documind-dashboard-root * {
+  box-sizing: border-box;
+}
+
+/* ---------------------------------------------------------- Sidebar */
+
+.documind-dashboard-sidebar {
+  width: 230px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 18px;
+  background: rgba(20, 18, 26, 0.85);
+  border-right: 1px solid var(--dd-border);
+  backdrop-filter: blur(18px);
+}
+
+.documind-dashboard-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  margin-bottom: 30px;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.2px;
+}
+
+.documind-dashboard-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--dd-pink), var(--dd-purple));
+  font-size: 16px;
+}
+
+.documind-dashboard-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.documind-dashboard-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 11px 14px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--dd-muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.documind-dashboard-nav-item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--dd-text);
+}
+
+.documind-dashboard-nav-item.is-active {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.35), rgba(139, 92, 246, 0.35));
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+
+.documind-dashboard-nav-icon {
+  font-size: 15px;
+}
+
+.documind-dashboard-retour {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--dd-border);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(139, 92, 246, 0.18));
+  color: var(--dd-text);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.documind-dashboard-retour:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.32), rgba(139, 92, 246, 0.32));
+}
+
+/* ------------------------------------------------------------- Main */
+
+.documind-dashboard-main {
+  flex: 1;
+  min-width: 0;
+  padding: 32px 40px 60px;
+  overflow-y: auto;
+}
+
+.documind-dashboard-main::-webkit-scrollbar {
+  width: 8px;
+}
+
+.documind-dashboard-main::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+}
+
+.documind-dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.documind-dashboard-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ffffff, #d7cfe6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.documind-dashboard-subtitle {
+  margin: 6px 0 0;
+  color: var(--dd-muted);
+  font-size: 14px;
+}
+
+.documind-dashboard-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: var(--dd-card-soft);
+  border: 1px solid var(--dd-border);
+  font-size: 12.5px;
+  color: var(--dd-muted);
+  backdrop-filter: blur(10px);
+  white-space: nowrap;
+}
+
+.documind-dashboard-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dd-green);
+  box-shadow: 0 0 8px var(--dd-green);
+}
+
+.documind-dashboard-status-dot.is-loading {
+  background: var(--dd-amber);
+  box-shadow: 0 0 8px var(--dd-amber);
+  animation: documind-dashboard-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes documind-dashboard-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.documind-dashboard-error {
+  margin-bottom: 24px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: #fecaca;
+  font-size: 13.5px;
+}
+
+/* ------------------------------------------------------------ Cards */
+
+.documind-dashboard-card {
+  border-radius: var(--dd-radius);
+  background: linear-gradient(160deg, var(--dd-card) 0%, #17141d 100%);
+  border: 1px solid var(--dd-border);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
+  padding: 26px;
+}
+
+.documind-dashboard-section {
+  margin-bottom: 36px;
+  scroll-margin-top: 20px;
+}
+
+.documind-dashboard-section-title {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dd-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.documind-dashboard-section-hint {
+  margin: -8px 0 16px;
+  font-size: 12.5px;
+  color: var(--dd-muted);
+}
+
+/* KPI grid */
+
+.documind-dashboard-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 16px;
+  margin-bottom: 36px;
+}
+
+.documind-dashboard-kpi-card {
+  border-radius: 16px;
+  padding: 20px;
+  background: var(--dd-card-soft);
+  border: 1px solid var(--dd-border);
+  backdrop-filter: blur(10px);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.documind-dashboard-kpi-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(236, 72, 153, 0.4);
+}
+
+.documind-dashboard-kpi-icon {
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+
+.documind-dashboard-kpi-value {
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  background: linear-gradient(135deg, var(--dd-pink), var(--dd-purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.documind-dashboard-kpi-label {
+  font-size: 12.5px;
+  color: var(--dd-muted);
+}
+
+/* Charts layout */
+
+.documind-dashboard-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.documind-dashboard-chart-box {
+  height: 260px;
+  position: relative;
+  margin-top: 6px;
+}
+
+.documind-dashboard-chart-box.is-tall {
+  height: 300px;
+}
+
+/* Verification summary */
+
+.documind-dashboard-verif-total {
+  font-size: 13px;
+  color: var(--dd-muted);
+  margin: 0 0 14px;
+}
+
+.documind-dashboard-verif-legend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.documind-dashboard-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--dd-muted);
+}
+
+.documind-dashboard-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+/* Hallucination guard */
+
+.documind-dashboard-guard-summary {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.documind-dashboard-guard-metric strong {
+  display: block;
+  font-size: 26px;
+  background: linear-gradient(135deg, var(--dd-pink), var(--dd-purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.documind-dashboard-guard-metric span {
+  font-size: 12.5px;
+  color: var(--dd-muted);
+}
+
+.documind-dashboard-guard-caveat {
+  font-size: 12px;
+  color: var(--dd-amber);
+  margin: 0 0 18px;
+}
+
+.documind-dashboard-guard-test {
+  padding: 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--dd-border);
+  margin-bottom: 12px;
+}
+
+.documind-dashboard-guard-test p {
+  margin: 0 0 8px;
+  font-size: 13.5px;
+  color: #ded9e6;
+}
+
+.documind-dashboard-guard-test p:last-of-type {
+  margin-bottom: 0;
+}
+
+.documind-dashboard-guard-badge {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.documind-dashboard-guard-badge.is-pass {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--dd-green);
+}
+
+.documind-dashboard-guard-badge.is-fail {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--dd-red);
+}
+
+.documind-dashboard-empty {
+  color: var(--dd-muted);
+  font-size: 13.5px;
+}
+
+/* Documents table */
+
+.documind-dashboard-table-wrap {
+  overflow-x: auto;
+}
+
+.documind-dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.documind-dashboard-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dd-muted);
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--dd-border);
+}
+
+.documind-dashboard-table td {
+  padding: 14px;
+  font-size: 13.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.documind-dashboard-table tr:last-child td {
+  border-bottom: none;
+}
+
+.documind-dashboard-status-pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.documind-dashboard-status-pill.is-ready {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--dd-green);
+}
+
+.documind-dashboard-status-pill.is-pending {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--dd-amber);
+}
+
+/* Loading screen */
+
+.documind-dashboard-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100vh;
+  background: var(--dd-bg);
+  color: var(--dd-muted);
+  font-size: 14px;
+}
+
+/* ------------------------------------------------------- Responsive */
+
+@media (max-width: 1100px) {
+  .documind-dashboard-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .documind-dashboard-root {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .documind-dashboard-sidebar {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    padding: 14px 16px;
+  }
+
+  .documind-dashboard-brand {
+    margin-bottom: 0;
+  }
+
+  .documind-dashboard-nav {
+    flex-direction: row;
+  }
+
+  .documind-dashboard-retour {
+    margin-top: 0;
+    margin-left: 8px;
+    white-space: nowrap;
+  }
+
+  .documind-dashboard-main {
+    padding: 24px 18px 40px;
+  }
+
+  .documind-dashboard-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
