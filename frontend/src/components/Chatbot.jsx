@@ -36,9 +36,26 @@ function TexteCite({ texte, citations, onCitation }) {
   );
 }
 
-function Message({ m, onCitation, nomDocument }) {
+function Message({ m, onCitation, nomDocument, onOuvrirDocument }) {
   if (m.role === "user") return <div className="message user">{m.texte}</div>;
   if (m.role === "erreur") return <div className="message erreur">{m.texte}</div>;
+  if (m.role === "piece-jointe")
+    return (
+      <button
+        type="button"
+        className="piece-jointe"
+        onClick={() => onOuvrirDocument(m.documentId)}
+        title={m.nom}
+      >
+        <span className="piece-jointe-icone">📄</span>
+        <span className="piece-jointe-infos">
+          <span className="piece-jointe-nom">{m.nom}</span>
+          <span className="piece-jointe-pages">
+            {m.pages ? `${m.pages} page${m.pages > 1 ? "s" : ""}` : "PDF"}
+          </span>
+        </span>
+      </button>
+    );
   if (m.refus)
     return <div className="message refus">🛡️ Je ne peux pas répondre : {m.refus}</div>;
   return (
@@ -70,6 +87,7 @@ export default function Chatbot({
   setSelection,
   onCitation,
   onOuvrir,
+  onImporterPDF,
   documentOuvert,
   conversationId,
   onConversationCreated
@@ -96,7 +114,19 @@ const importerPDF = async (e) => {
       ...new Set([...precedent, resultat.document_id])
     ]);
 
-    onOuvrir(resultat.document_id);
+    // Sélectionne le document comme actif, sans ouvrir la visionneuse.
+    onImporterPDF(resultat.document_id);
+
+    // Affiche une carte pièce jointe cliquable dans le fil de discussion.
+    setMessages((ms) => [
+      ...ms,
+      {
+        role: "piece-jointe",
+        documentId: resultat.document_id,
+        nom: resultat.nom,
+        pages: resultat.pages
+      }
+    ]);
 
     const liste = await listerDocuments();
     setDocuments(liste);
@@ -195,13 +225,18 @@ const detecterTraduction = (texte) => {
 
   // 2. Intentions
   const traduction =
-    /\b(tradui\w*|traduction|translate\w*|translation)\b/i.test(q);
+    /tradui\w*|traduction|translat\w*/i.test(q);
+
+  // Demande explicite de téléchargement du PDF (sans forcément
+  // utiliser un verbe de traduction, ex. "télécharge le PDF en anglais").
+  const demandeTelechargement =
+    /t[ée]l[ée]charg\w*|download\w*/i.test(q);
 
   const explication =
-    /\b(expliqu\w*|explication|explain\w*)\b/i.test(q);
+    /expliqu\w*|explication|explain\w*/i.test(q);
 
   const resume =
-    /\b(résum\w*|resum\w*|summari\w*|summariz\w*|summary)\b/i.test(q);
+    /r[ée]sum\w*|summari\w*|summariz\w*|summary/i.test(q);
 
   // 3. Réponse précédente
   const precedent =
@@ -214,7 +249,14 @@ const detecterTraduction = (texte) => {
 
   // 5. Traduction d'un PDF
   // Le mot "entier" n'est plus obligatoire.
-  if (traduction && documentPDF && !precedent && langue) {
+  // Un verbe de traduction OU une demande explicite de téléchargement
+  // suffit, tant que le contexte PDF et la langue cible sont présents.
+  if (
+    (traduction || demandeTelechargement) &&
+    documentPDF &&
+    !precedent &&
+    langue
+  ) {
     return { type: "pdf", langue };
   }
 
@@ -536,7 +578,13 @@ if (intention && intention.type !== "pdf") {
           </div>
         )}
         {messages.map((m, i) => (
-          <Message key={i} m={m} onCitation={onCitation} nomDocument={nomDocument} />
+          <Message
+            key={i}
+            m={m}
+            onCitation={onCitation}
+            nomDocument={nomDocument}
+            onOuvrirDocument={onOuvrir}
+          />
         ))}
         {attente && <div className="message assistant">⏳ Recherche dans les documents…</div>}
         <div ref={bas} />

@@ -486,6 +486,76 @@ button:hover:not(:disabled) {
   background: #292929;
 }
 
+/* ChatGPT-style PDF attachment card */
+
+.piece-jointe {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  align-self: flex-start;
+  width: fit-content;
+  max-width: 320px;
+  padding: 10px 14px;
+  background: var(--dm-surface);
+  border: 1px solid var(--dm-border);
+  border-radius: 12px;
+  text-align: left;
+}
+
+.piece-jointe:hover {
+  background: #383838;
+}
+
+.piece-jointe-icone {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.piece-jointe-infos {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.piece-jointe-nom {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dm-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.piece-jointe-pages {
+  font-size: 11px;
+  color: var(--dm-muted);
+}
+
+/* Collapsible PDF viewer column */
+
+.app.viewer-ferme {
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.visionneuse-entete {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.fermer-visionneuse {
+  border: none;
+  background: transparent;
+  color: var(--dm-muted);
+  font-size: 16px;
+  padding: 4px 8px;
+}
+
+.fermer-visionneuse:hover {
+  background: #383838;
+  color: var(--dm-text);
+}
 
 
 

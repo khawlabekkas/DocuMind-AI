@@ -90,6 +90,7 @@ const demarrerNouveauChat = () => {
   setMessagesSauvegardes([]);
   setNouveauChat((n) => n + 1);
   setVue({ documentId: null, page: 1, rects: [] });
+  setViewerOuvert(false);
 };
 
 
@@ -144,12 +145,33 @@ const handleConversationCreated = async (id) => {
   const [selection, setSelection] = useState([]); // ids des PDF cochés
   // ce que la visionneuse affiche : quel PDF, quelle page, quoi surligner
   const [vue, setVue] = useState({ documentId: null, page: 1, rects: [] });
+  // visibilité de la visionneuse, indépendante du document actif
+  const [viewerOuvert, setViewerOuvert] = useState(false);
 
-  const ouvrirCitation = (c) =>
+  const ouvrirCitation = (c) => {
     setVue({ documentId: c.document_id, page: c.page, rects: c.rects });
+    setViewerOuvert(true);
+  };
+
+  // Ouvre la visionneuse sur un document (carte pièce jointe, liste de documents).
+  const ouvrirVisionneuse = (id) => {
+    setVue({ documentId: id, page: 1, rects: [] });
+    setViewerOuvert(true);
+  };
+
+  // Définit le document actif (pour résumé/traduction/etc.) sans ouvrir la visionneuse.
+  const definirDocumentActif = (id) =>
+    setVue((v) => ({ ...v, documentId: id }));
 
   return (
-    <div className={pageActive === "dashboard" ? "app-dashboard" : "app"}>
+    <div
+      className={
+        pageActive === "dashboard"
+          ? "app-dashboard"
+          : `app${viewerOuvert ? "" : " viewer-ferme"}`
+      }
+    >
+
       {pageActive === "dashboard" ?( <Dashboard onRetour={() => setPageActive("chat")} />
 ) : (
       <>
@@ -220,15 +242,26 @@ const handleConversationCreated = async (id) => {
   setDocuments={setDocuments}
   setSelection={setSelection}
   onCitation={ouvrirCitation}
-  onOuvrir={(id) =>
-    setVue({ documentId: id, page: 1, rects: [] })
-  }
+  onOuvrir={ouvrirVisionneuse}
+  onImporterPDF={definirDocumentActif}
   documentOuvert={vue.documentId}
   conversationId={conversationId}
   onConversationCreated={handleConversationCreated}
 />
       </main>
+      {viewerOuvert && (
       <section className="colonne droite">
+        <div className="visionneuse-entete">
+          <button
+            type="button"
+            className="fermer-visionneuse"
+            onClick={() => setViewerOuvert(false)}
+            title="Fermer la visionneuse"
+            aria-label="Fermer la visionneuse"
+          >
+            ✕
+          </button>
+        </div>
         <PdfViewer
           documentId={vue.documentId}
           page={vue.page}
@@ -236,6 +269,7 @@ const handleConversationCreated = async (id) => {
           onPage={(p) => setVue({ ...vue, page: p, rects: [] })}
         />
       </section>
+      )}
         </> )}
     </div>
   );
