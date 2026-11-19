@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,7 +20,21 @@ import {
   Filler,
 } from "chart.js";
 import { Line, Bar, Doughnut } from "react-chartjs-2";
+import {
+  IconeBouclier,
+  IconeBulle,
+  IconeCerveau,
+  IconeDocument,
+  IconeAnalyser,
+  IconeEtincelle,
+  IconeGraphique,
+  IconeTraduire,
+  IconeChevron,
+} from "./Icones.jsx";
 import "./Dashboard.css";
+
+// Chargé paresseusement, comme sur l'écran d'accueil du chatbot.
+const BrainScene = lazy(() => import("./BrainScene.jsx"));
 
 ChartJS.register(
   CategoryScale,
@@ -26,20 +48,26 @@ ChartJS.register(
   Filler
 );
 
-const COULEUR_MUTED = "#a39db0";
-const COULEUR_GRID = "rgba(255, 255, 255, 0.06)";
-const COULEUR_PINK = "#ec4899";
-const COULEUR_PURPLE = "#8b5cf6";
+const COULEUR_MUTED = "#b9a6c4";
+const COULEUR_GRID = "rgba(244, 114, 182, 0.09)";
+const COULEUR_PINK = "#f472b6";
+const COULEUR_PURPLE = "#a855f7";
+const COULEUR_SUPPORTED = "#f472b6";
+const COULEUR_CORRECTED = "#a78bfa";
+const COULEUR_REJECTED = "#fb7185";
+
+ChartJS.defaults.font.family = '"Inter", system-ui, sans-serif';
 
 const TOOLTIP_SOMBRE = {
-  backgroundColor: "#1c1922",
+  backgroundColor: "rgba(26, 11, 36, 0.95)",
   titleColor: "#ffffff",
-  bodyColor: "#d8d3e0",
-  borderColor: "rgba(255, 255, 255, 0.1)",
+  bodyColor: "#f0d9ec",
+  borderColor: "rgba(244, 114, 182, 0.55)",
   borderWidth: 1,
-  padding: 10,
-  cornerRadius: 8,
+  padding: 12,
+  cornerRadius: 12,
   displayColors: true,
+  boxPadding: 4,
 };
 
 const LABELS_TYPE_INTERACTION = {
@@ -158,23 +186,24 @@ export default function Dashboard({ onRetour }) {
           label: "Interactions",
           data: activite.map((j) => j.total),
           borderColor: COULEUR_PINK,
-          borderWidth: 2.5,
-          pointBackgroundColor: COULEUR_PURPLE,
-          pointBorderColor: "#ffffff",
-          pointRadius: 4,
+          borderWidth: 3,
+          pointBackgroundColor: "#ffffff",
+          pointBorderColor: COULEUR_PINK,
+          pointRadius: 3,
+          pointHoverRadius: 6,
           tension: 0.4,
           fill: true,
           backgroundColor: (context) => {
             const { ctx, chartArea } = context.chart;
-            if (!chartArea) return "rgba(236, 72, 153, 0.15)";
+            if (!chartArea) return "rgba(244, 114, 182, 0.15)";
             const gradient = ctx.createLinearGradient(
               0,
               chartArea.top,
               0,
               chartArea.bottom
             );
-            gradient.addColorStop(0, "rgba(236, 72, 153, 0.45)");
-            gradient.addColorStop(1, "rgba(139, 92, 246, 0)");
+            gradient.addColorStop(0, "rgba(244, 114, 182, 0.5)");
+            gradient.addColorStop(1, "rgba(168, 85, 247, 0)");
             return gradient;
           },
         },
@@ -252,7 +281,14 @@ export default function Dashboard({ onRetour }) {
     plugins: {
       legend: {
         position: "bottom",
-        labels: { color: COULEUR_MUTED, boxWidth: 10, padding: 16 },
+        labels: {
+          color: COULEUR_MUTED,
+          boxWidth: 10,
+          boxHeight: 10,
+          padding: 16,
+          usePointStyle: true,
+          pointStyle: "circle",
+        },
       },
       tooltip: TOOLTIP_SOMBRE,
     },
@@ -284,7 +320,7 @@ export default function Dashboard({ onRetour }) {
             verification.corrected ?? 0,
             verification.rejected ?? 0,
           ],
-          backgroundColor: ["#34d399", "#fbbf24", "#f87171"],
+          backgroundColor: [COULEUR_SUPPORTED, COULEUR_CORRECTED, COULEUR_REJECTED],
           borderWidth: 0,
           hoverOffset: 6,
         },
@@ -311,16 +347,22 @@ export default function Dashboard({ onRetour }) {
           backgroundColor: [
             COULEUR_PINK,
             COULEUR_PURPLE,
-            "#f472b6",
+            "#e879f9",
             "#a78bfa",
-            "#c084fc",
+            "#fb7185",
           ],
-          borderWidth: 0,
+          borderColor: "rgba(20, 8, 28, 0.9)",
+          borderWidth: 2,
           hoverOffset: 6,
         },
       ],
     }),
     [interactionsParType]
+  );
+
+  const totalInteractions = interactionsParType.reduce(
+    (somme, ligne) => somme + (Number(ligne.total) || 0),
+    0
   );
 
   const optionsDoughnut = {
@@ -329,7 +371,14 @@ export default function Dashboard({ onRetour }) {
     plugins: {
       legend: {
         position: "bottom",
-        labels: { color: COULEUR_MUTED, boxWidth: 10, padding: 14 },
+        labels: {
+          color: COULEUR_MUTED,
+          boxWidth: 10,
+          boxHeight: 10,
+          padding: 14,
+          usePointStyle: true,
+          pointStyle: "circle",
+        },
       },
       tooltip: TOOLTIP_SOMBRE,
     },
@@ -358,8 +407,12 @@ export default function Dashboard({ onRetour }) {
     <div className="documind-dashboard-root">
       <aside className="documind-dashboard-sidebar">
         <div className="documind-dashboard-brand">
-          <span className="documind-dashboard-brand-mark">📊</span>
-          DocuMind AI
+          <span className="documind-dashboard-brand-mark">
+            <IconeCerveau taille={22} epaisseur={1.5} />
+          </span>
+          <span>
+            DocuMind <em>AI</em>
+          </span>
         </div>
 
         <nav className="documind-dashboard-nav">
@@ -371,7 +424,7 @@ export default function Dashboard({ onRetour }) {
             }
             onClick={() => allerALaSection("apercu", refApercu)}
           >
-            <span className="documind-dashboard-nav-icon">🏠</span>
+            <span className="documind-dashboard-nav-icon"><IconeGraphique taille={18} /></span>
             Overview
           </button>
 
@@ -383,7 +436,7 @@ export default function Dashboard({ onRetour }) {
             }
             onClick={() => allerALaSection("ragas", refRagas)}
           >
-            <span className="documind-dashboard-nav-icon">🧠</span>
+            <span className="documind-dashboard-nav-icon"><IconeCerveau taille={18} /></span>
             RAGAS Evaluation
           </button>
 
@@ -395,7 +448,7 @@ export default function Dashboard({ onRetour }) {
             }
             onClick={() => allerALaSection("guard", refGuard)}
           >
-            <span className="documind-dashboard-nav-icon">🛡️</span>
+            <span className="documind-dashboard-nav-icon"><IconeBouclier taille={18} /></span>
             Hallucination Guard
           </button>
 
@@ -407,7 +460,7 @@ export default function Dashboard({ onRetour }) {
             }
             onClick={() => allerALaSection("documents", refDocuments)}
           >
-            <span className="documind-dashboard-nav-icon">📚</span>
+            <span className="documind-dashboard-nav-icon"><IconeDocument taille={18} /></span>
             Documents
           </button>
         </nav>
@@ -424,7 +477,12 @@ export default function Dashboard({ onRetour }) {
       <main className="documind-dashboard-main">
         <div className="documind-dashboard-header">
           <div>
-            <h1 className="documind-dashboard-title">DocuMind AI</h1>
+            <h1 className="documind-dashboard-title">
+              <span className="documind-dashboard-title-icon">
+                <IconeGraphique taille={26} epaisseur={2} />
+              </span>
+              Dashboard
+            </h1>
             <p className="documind-dashboard-subtitle">
               Intelligent Document Analytics
             </p>
@@ -446,27 +504,87 @@ export default function Dashboard({ onRetour }) {
         {erreur && <div className="documind-dashboard-error">{erreur}</div>}
 
         <section ref={refApercu} className="documind-dashboard-section">
+          <div className="documind-dashboard-banner">
+            <div className="documind-dashboard-banner-texte">
+              <h2 className="documind-dashboard-banner-titre">
+                Welcome back <span>👋</span>
+              </h2>
+              <p className="documind-dashboard-banner-sous-titre">
+                Analyze, summarize, translate and verify your documents with
+                DocuMind AI.
+              </p>
+              <button
+                type="button"
+                className="documind-dashboard-banner-cta"
+                onClick={onRetour}
+              >
+                Chat with Documents <span aria-hidden="true">→</span>
+              </button>
+            </div>
+
+            <div className="documind-dashboard-banner-brain" aria-hidden="true">
+              <div className="documind-dashboard-banner-aura" />
+              <div className="documind-dashboard-banner-socle" />
+              <Suspense fallback={null}>
+                <BrainScene />
+              </Suspense>
+            </div>
+
+            <ul className="documind-dashboard-banner-features">
+              <li>
+                <span className="documind-dashboard-feature-icone">
+                  <IconeAnalyser taille={22} epaisseur={1.5} />
+                </span>
+                <span>
+                  <strong>Analyze Documents</strong>
+                  <small>Get summaries and explanations</small>
+                </span>
+              </li>
+              <li>
+                <span className="documind-dashboard-feature-icone">
+                  <IconeTraduire taille={22} epaisseur={1.5} />
+                </span>
+                <span>
+                  <strong>Translate PDFs</strong>
+                  <small>FR · EN · ES · AR</small>
+                </span>
+              </li>
+              <li>
+                <span className="documind-dashboard-feature-icone">
+                  <IconeBouclier taille={22} epaisseur={1.5} />
+                </span>
+                <span>
+                  <strong>Hallucination Guard</strong>
+                  <small>Reliable and verified answers</small>
+                </span>
+              </li>
+            </ul>
+          </div>
+
           <div className="documind-dashboard-kpi-grid">
             {[
-              ["📄", "Documents PDF", stats?.kpi?.documents],
-              ["📑", "Pages analysées", stats?.kpi?.pages],
-              ["💬", "Conversations", stats?.kpi?.conversations],
-              ["❓", "Questions posées", stats?.kpi?.questions],
-              ["🧩", "Chunks indexés", stats?.kpi?.chunks],
-              ["⚡", "Interactions", stats?.kpi?.interactions],
+              [<IconeDocument taille={24} epaisseur={1.5} />, "Documents PDF", stats?.kpi?.documents],
+              [<IconeAnalyser taille={24} epaisseur={1.5} />, "Pages analysées", stats?.kpi?.pages],
+              [<IconeBulle taille={24} epaisseur={1.5} />, "Conversations", stats?.kpi?.conversations],
+              [<IconeGraphique taille={24} epaisseur={1.5} />, "Questions posées", stats?.kpi?.questions],
+              [<IconeCerveau taille={24} epaisseur={1.5} />, "Chunks indexés", stats?.kpi?.chunks],
+              [<IconeEtincelle taille={24} epaisseur={1.5} />, "Interactions", stats?.kpi?.interactions],
             ].map(([icon, label, value]) => (
               <div className="documind-dashboard-kpi-card" key={label}>
                 <div className="documind-dashboard-kpi-icon">{icon}</div>
-                <div className="documind-dashboard-kpi-value">{value ?? 0}</div>
-                <div className="documind-dashboard-kpi-label">{label}</div>
+                <div className="documind-dashboard-kpi-texte">
+                  <div className="documind-dashboard-kpi-label">{label}</div>
+                  <div className="documind-dashboard-kpi-value">{value ?? 0}</div>
+                </div>
               </div>
             ))}
           </div>
 
-          <div className="documind-dashboard-charts-grid">
+          <div className="documind-dashboard-charts-grid is-overview">
             <div className="documind-dashboard-card">
               <h2 className="documind-dashboard-section-title">
-                📈 Activité des 7 derniers jours
+                <span className="documind-dashboard-title-glyph"><IconeGraphique taille={18} /></span>
+                Activité des 7 derniers jours
               </h2>
               <div className="documind-dashboard-chart-box">
                 {activite.length ? (
@@ -481,19 +599,55 @@ export default function Dashboard({ onRetour }) {
 
             <div className="documind-dashboard-card">
               <h2 className="documind-dashboard-section-title">
-                ⚡ Types d'interactions
+                <span className="documind-dashboard-title-glyph"><IconeEtincelle taille={18} /></span>
+                Types d'interactions
               </h2>
               <div className="documind-dashboard-chart-box">
                 {interactionsParType.length ? (
-                  <Doughnut
-                    data={interactionsChartData}
-                    options={optionsDoughnut}
-                  />
+                  <>
+                    <Doughnut
+                      data={interactionsChartData}
+                      options={optionsDoughnut}
+                    />
+                    <div className="documind-dashboard-donut-centre">
+                      <strong>{totalInteractions}</strong>
+                      <span>Interactions</span>
+                    </div>
+                  </>
                 ) : (
                   <p className="documind-dashboard-empty">
                     Aucune interaction enregistrée pour le moment.
                   </p>
                 )}
+              </div>
+            </div>
+
+            <div className="documind-dashboard-card">
+              <h2 className="documind-dashboard-section-title">
+                <span className="documind-dashboard-title-glyph"><IconeEtincelle taille={18} /></span>
+                Quick Actions
+              </h2>
+              <div className="documind-dashboard-actions">
+                <button type="button" onClick={onRetour}>
+                  <IconeBulle taille={19} />
+                  <span>Chat with Documents</span>
+                  <IconeChevron taille={16} />
+                </button>
+                <button type="button" onClick={() => allerALaSection("ragas", refRagas)}>
+                  <IconeCerveau taille={19} />
+                  <span>RAGAS Evaluation</span>
+                  <IconeChevron taille={16} />
+                </button>
+                <button type="button" onClick={() => allerALaSection("guard", refGuard)}>
+                  <IconeBouclier taille={19} />
+                  <span>Hallucination Guard</span>
+                  <IconeChevron taille={16} />
+                </button>
+                <button type="button" onClick={() => allerALaSection("documents", refDocuments)}>
+                  <IconeDocument taille={19} />
+                  <span>Recent Documents</span>
+                  <IconeChevron taille={16} />
+                </button>
               </div>
             </div>
           </div>
@@ -503,7 +657,8 @@ export default function Dashboard({ onRetour }) {
           <div className="documind-dashboard-charts-grid">
             <div className="documind-dashboard-card">
               <h2 className="documind-dashboard-section-title">
-                🧠 Évaluation RAGAS — Baseline vs Advanced
+                <span className="documind-dashboard-title-glyph"><IconeCerveau taille={18} /></span>
+                Évaluation RAGAS — Baseline vs Advanced
               </h2>
               <p className="documind-dashboard-section-hint">
                 Moyennes calculées sur {new Set(comparaison.map((r) => r.question)).size || 0} question(s). Scores compris entre 0 et 1.
@@ -521,7 +676,8 @@ export default function Dashboard({ onRetour }) {
 
             <div className="documind-dashboard-card">
               <h2 className="documind-dashboard-section-title">
-                ✅ Vérification des réponses IA
+                <span className="documind-dashboard-title-glyph"><IconeBouclier taille={18} /></span>
+                Vérification des réponses IA
               </h2>
               <p className="documind-dashboard-verif-total">
                 {totalVerifie} réponse(s) vérifiée(s) — verdicts enregistrés,
@@ -543,21 +699,21 @@ export default function Dashboard({ onRetour }) {
                 <span className="documind-dashboard-legend-item">
                   <span
                     className="documind-dashboard-legend-dot"
-                    style={{ background: "#34d399" }}
+                    style={{ background: COULEUR_SUPPORTED }}
                   />
                   Supported ({verification.supported ?? 0})
                 </span>
                 <span className="documind-dashboard-legend-item">
                   <span
                     className="documind-dashboard-legend-dot"
-                    style={{ background: "#fbbf24" }}
+                    style={{ background: COULEUR_CORRECTED }}
                   />
                   Corrected ({verification.corrected ?? 0})
                 </span>
                 <span className="documind-dashboard-legend-item">
                   <span
                     className="documind-dashboard-legend-dot"
-                    style={{ background: "#f87171" }}
+                    style={{ background: COULEUR_REJECTED }}
                   />
                   Rejected ({verification.rejected ?? 0})
                 </span>
@@ -569,7 +725,8 @@ export default function Dashboard({ onRetour }) {
         <section ref={refGuard} className="documind-dashboard-section">
           <div className="documind-dashboard-card">
             <h2 className="documind-dashboard-section-title">
-              🛡️ Hallucination Guard
+              <span className="documind-dashboard-title-glyph"><IconeBouclier taille={18} /></span>
+              Hallucination Guard
             </h2>
 
             <div className="documind-dashboard-guard-summary">
@@ -637,7 +794,8 @@ export default function Dashboard({ onRetour }) {
         <section ref={refDocuments} className="documind-dashboard-section">
           <div className="documind-dashboard-card">
             <h2 className="documind-dashboard-section-title">
-              📚 Documents PDF récents
+              <span className="documind-dashboard-title-glyph"><IconeDocument taille={18} /></span>
+              Documents PDF récents
             </h2>
 
             <div className="documind-dashboard-table-wrap">
@@ -653,7 +811,12 @@ export default function Dashboard({ onRetour }) {
                 <tbody>
                   {documentsRecents.map((doc) => (
                     <tr key={doc.id}>
-                      <td>📄 {doc.nom}</td>
+                      <td>
+                        <span className="documind-dashboard-doc-nom">
+                          <IconeDocument taille={18} epaisseur={1.5} />
+                          {doc.nom}
+                        </span>
+                      </td>
                       <td>{doc.pages}</td>
                       <td>
                         <span
