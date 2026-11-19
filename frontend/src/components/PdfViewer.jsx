@@ -19,11 +19,16 @@ export default function PdfViewer({ documentId, page, rects, onPage }) {
     if (!documentId) return;
     let annule = false;
     setPdf(null); setErreur("");
+    // Si le serveur ne répond pas, on l'indique au lieu de laisser un cadre vide.
+    const delai = setTimeout(
+      () => !annule && setErreur("Le PDF ne se charge pas : le serveur ne répond pas."),
+      15000
+    );
     const tache = pdfjsLib.getDocument(urlFichier(documentId));
     tache.promise
-      .then((p) => !annule && setPdf(p))
-      .catch((e) => !annule && setErreur("Impossible d'afficher le PDF : " + e.message));
-    return () => { annule = true; tache.destroy(); };
+      .then((p) => { if (!annule) { clearTimeout(delai); setErreur(""); setPdf(p); } })
+      .catch((e) => { if (!annule) { clearTimeout(delai); setErreur("Impossible d'afficher le PDF : " + e.message); } });
+    return () => { annule = true; clearTimeout(delai); tache.destroy(); };
   }, [documentId]);
 
   // 2. Dessiner la page dans le <canvas>
@@ -62,7 +67,12 @@ export default function PdfViewer({ documentId, page, rects, onPage }) {
         <button disabled={!pdf || page >= pdf.numPages} onClick={() => onPage(page + 1)}>▶</button>
       </div>
       {erreur && <p className="erreur">{erreur}</p>}
-      <div className="page">
+      {!pdf && !erreur && <p className="aide">Chargement du PDF…</p>}
+      {/* La page (canvas + surlignages) n'apparaît qu'une fois le PDF chargé :
+          avant, le canvas vide laissait voir le fond sombre et les surlignages
+          étaient dessinés à l'échelle 1, d'où les rectangles jaunes et le
+          défilement horizontal. */}
+      <div className="page" style={pdf ? undefined : { display: "none" }}>
         <canvas ref={canvas} />
         {/* bbox PyMuPDF [x0,y0,x1,y1] en points, origine en haut à gauche -> pixels = points × échelle */}
         {rects.map(([x0, y0, x1, y1], i) => (

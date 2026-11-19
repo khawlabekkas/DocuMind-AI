@@ -1,47 +1,54 @@
 * { box-sizing: border-box; }
-body { margin: 0; font-family: system-ui, sans-serif; background: #f6f5f8; color: #1f1d24; }
+html, body, #root { height: 100%; margin: 0; }
+body { font-family: system-ui, sans-serif; background: #f6f5f8; color: #1f1d24; }
 button { font: inherit; cursor: pointer; border: 1px solid #d8d4de; background: #fff; border-radius: 6px; padding: 6px 10px; }
 button:disabled { opacity: .45; cursor: not-allowed; }
 .principal { background: #b0124f; color: #fff; border-color: #b0124f; }
-.app { display: grid; grid-template-columns: 260px 1fr 1fr; height: 100vh; }
-.colonne { overflow: auto; padding: 16px; }
-.gauche { background: #fff; border-right: 1px solid #e6e2ea; }
-.droite { background: #ece9ef; border-left: 1px solid #e6e2ea; }
-h1 { font-size: 20px; color: #b0124f; margin: 0 0 16px; }
+.app { display: grid; grid-template-columns: 260px 1fr 1fr; height: 100vh; height: 100dvh; overflow: hidden; }
+.colonne { overflow: auto; padding: 16px; min-height: 0; }
+h1 { font-size: 20px; margin: 0 0 16px; }
 .aide { font-size: 12px; color: #77707f; }
-.erreur { color: #b42318; font-size: 13px; }
+.erreur { color: var(--dm-red, #f87171); font-size: 13px; }
 .vide { color: #77707f; text-align: center; margin-top: 40px; line-height: 1.6; }
 
 .documents .bouton { display: block; text-align: center; padding: 10px; border-radius: 6px; cursor: pointer; }
 .documents ul { list-style: none; padding: 0; margin: 0; }
 .documents li { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 6px; align-items: center;
-  padding: 8px; border-radius: 6px; margin-bottom: 4px; }
-.documents li.ouvert { background: #fbeef3; }
+  padding: 8px; border-radius: 10px; margin-bottom: 4px; transition: background 0.15s ease; }
+.documents li.ouvert { background: rgba(236, 72, 153, 0.12); }
 .documents .nom { border: none; background: none; text-align: left; padding: 0; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
 .documents .statut { grid-column: 2; font-size: 11px; color: #77707f; }
-.documents .statut.ready { color: #1a7f37; }
-.documents .statut.error { color: #b42318; }
+.documents .statut.ready { color: var(--dm-green, #34d399); }
+.documents .statut.error { color: var(--dm-red, #f87171); }
 .documents .supprimer { grid-row: 1; grid-column: 3; border: none; color: #999; padding: 2px 6px; }
 
-.chatbot { display: flex; flex-direction: column; height: 100%; }
-.messages { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
-.message { padding: 10px 14px; border-radius: 10px; max-width: 92%; line-height: 1.5; }
+.chatbot { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.messages { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.message { padding: 10px 14px; border-radius: 10px; max-width: 92%; line-height: 1.5; animation: documind-message-in 0.22s ease-out; }
 .message.user { align-self: flex-end; background: #b0124f; color: #fff; }
 .message.assistant { background: #fff; border: 1px solid #e6e2ea; }
-.message.refus { background: #fff6e5; border: 1px solid #f0c36d; }
-.message.erreur { background: #fdecea; }
+.message.refus { background: rgba(251, 191, 36, 0.12); border: 1px solid rgba(251, 191, 36, 0.35); color: var(--dm-text, #f5f3f7); }
+.message.erreur { background: rgba(248, 113, 113, 0.12); border: 1px solid rgba(248, 113, 113, 0.35); color: var(--dm-text, #f5f3f7); }
 .texte { margin: 0; white-space: pre-wrap; }
-.pastille { padding: 0 6px; margin: 0 2px; font-size: 11px; border-radius: 10px; background: #fbeef3;
-  border-color: #e9a8c1; color: #b0124f; vertical-align: super; }
+.pastille { padding: 0 6px; margin: 0 2px; font-size: 11px; border-radius: 10px; background: rgba(139, 92, 246, 0.18);
+  border: 1px solid rgba(236, 72, 153, 0.4); color: #f3b4d6; vertical-align: super; }
 .sources { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
-.source { text-align: left; display: flex; flex-direction: column; }
+.source { text-align: left; display: flex; flex-direction: column; transition: border-color 0.15s ease; }
+.source:hover:not(:disabled) { border-color: rgba(236, 72, 153, 0.45); }
 .source small { color: #77707f; }
-.verdict { display: inline-block; margin-top: 8px; font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #eee; }
-.verdict.supported { background: #e6f4ea; color: #1a7f37; }
+.verdict { display: inline-block; margin-top: 8px; font-size: 12px; padding: 2px 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.08); color: var(--dm-muted, #a39db0); }
+.verdict.supported { background: rgba(52, 211, 153, 0.15); color: var(--dm-green, #34d399); }
 .actions { display: flex; gap: 6px; align-items: center; padding: 10px 0; flex-wrap: wrap; }
 .saisie { display: flex; gap: 8px; }
 .saisie input { flex: 1; padding: 10px; border: 1px solid #d8d4de; border-radius: 6px; font: inherit; }
+
+@keyframes documind-message-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
 
 .navigation { display: flex; gap: 10px; align-items: center; justify-content: center; margin-bottom: 10px; }
 .page { position: relative; width: fit-content; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
@@ -54,18 +61,29 @@ h1 { font-size: 20px; color: #b0124f; margin: 0 0 16px; }
 /* ===== DocuMind AI — Modern Dark Theme ===== */
 
 :root {
-  --dm-bg: #171717;
-  --dm-sidebar: #202020;
-  --dm-surface: #2f2f2f;
-  --dm-border: #404040;
-  --dm-text: #f5f5f5;
-  --dm-muted: #a6a6a6;
-  --dm-accent: #d97757;
+  --dm-bg: #100f14;
+  --dm-sidebar: rgba(20, 18, 26, 0.85);
+  --dm-surface: #1c1922;
+  --dm-surface-soft: rgba(28, 25, 34, 0.72);
+  --dm-border: rgba(255, 255, 255, 0.08);
+  --dm-text: #f5f3f7;
+  --dm-muted: #a39db0;
+  --dm-pink: #ec4899;
+  --dm-purple: #8b5cf6;
+  --dm-accent: var(--dm-pink);
+  --dm-green: #34d399;
+  --dm-red: #f87171;
+  --dm-amber: #fbbf24;
+  --dm-radius: 16px;
+  --dm-glow: 0 0 20px rgba(236, 72, 153, 0.35);
 }
 
 body {
-  background: var(--dm-bg);
+  background:
+    radial-gradient(circle at 92% 4%, rgba(236, 72, 153, 0.16), transparent 42%),
+    radial-gradient(circle at 15% 0%, #241a2e 0%, var(--dm-bg) 45%) fixed;
   color: var(--dm-text);
+  font-family: "Inter", system-ui, sans-serif;
 }
 
 button {
@@ -73,16 +91,23 @@ button {
   color: var(--dm-text);
   border: 1px solid var(--dm-border);
   border-radius: 10px;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
 }
 
 button:hover:not(:disabled) {
-  background: #404040;
+  background: #2a2630;
+  border-color: rgba(236, 72, 153, 0.4);
 }
 
 .principal {
-  background: var(--dm-accent);
-  border-color: var(--dm-accent);
+  background: linear-gradient(135deg, var(--dm-pink), var(--dm-purple));
+  border-color: transparent;
   color: #fff;
+}
+
+.principal:hover:not(:disabled) {
+  box-shadow: var(--dm-glow);
+  transform: translateY(-1px);
 }
 
 .navigation-principale {
@@ -117,35 +142,73 @@ button:hover:not(:disabled) {
 }
 
 .app {
-  height: calc(100vh - 65px);
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   grid-template-columns: 250px minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .gauche {
   background: var(--dm-sidebar);
   border-right: 1px solid var(--dm-border);
+  backdrop-filter: blur(18px);
 }
 
 .centre {
-  background: var(--dm-bg);
+  background: transparent;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .droite {
   background: var(--dm-sidebar);
   border-left: 1px solid var(--dm-border);
+  backdrop-filter: blur(18px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .gauche h1 {
-  color: var(--dm-accent);
+  background: linear-gradient(135deg, #ffffff, #d7cfe6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.navigation-app {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.navigation-app button {
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  text-align: left;
+  padding: 10px 12px;
+  color: var(--dm-muted);
+}
+
+.navigation-app button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--dm-text);
 }
 
 .message.assistant {
   background: var(--dm-surface);
   border-color: var(--dm-border);
+  border-radius: var(--dm-radius);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
 .message.user {
-  background: #a95138;
+  background: linear-gradient(135deg, var(--dm-pink), var(--dm-purple));
+  border-radius: var(--dm-radius);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.25);
 }
 
 .saisie input {
@@ -240,17 +303,17 @@ button:hover:not(:disabled) {
 }
 
 .gauche {
-  background: #171717;
-  border-right: 1px solid #292929;
+  background: var(--dm-sidebar);
+  border-right: 1px solid var(--dm-border);
   padding: 20px 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  overflow-y: auto;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .gauche h1 {
-  color: #f5f5f5;
   font-size: 19px;
   font-weight: 600;
   margin: 0 0 14px;
@@ -263,20 +326,28 @@ button:hover:not(:disabled) {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
+  min-height: 0;
 }
 
 .historique-conversations h3 {
   font-size: 12px;
   font-weight: 600;
-  color: #999999;
+  color: var(--dm-muted);
   margin: 12px 0 4px;
   padding: 0 12px;
+  flex-shrink: 0;
 }
 
 .liste-conversations {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .conversation-item {
@@ -297,25 +368,26 @@ button:hover:not(:disabled) {
 }
 
 .conversation-item:hover:not(:disabled) {
-  background: #292929;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .conversation-item.active {
-  background: #303030;
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.35), rgba(139, 92, 246, 0.35));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
 }
 
 /* PDF documents */
 
 .gauche .documents {
-  border-top: 1px solid #303030;
+  border-top: 1px solid var(--dm-border);
   padding-top: 16px;
   margin-top: 8px;
 }
 
 .gauche .documents .bouton {
-  background: #292929;
-  color: #f5f5f5;
-  border: none;
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(139, 92, 246, 0.18));
+  color: var(--dm-text);
+  border: 1px solid var(--dm-border);
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 13px;
@@ -323,16 +395,17 @@ button:hover:not(:disabled) {
 }
 
 .gauche .documents .bouton:hover {
-  background: #383838;
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.32), rgba(139, 92, 246, 0.32));
 }
 
 .gauche .documents li {
   padding: 8px 6px;
   border-radius: 8px;
+  transition: background 0.15s ease;
 }
 
 .gauche .documents li.ouvert {
-  background: #292929;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .gauche .documents .nom {
@@ -344,24 +417,50 @@ button:hover:not(:disabled) {
   font-size: 11px;
 }
 
+.gauche .documents .statut.ready {
+  color: var(--dm-green);
+}
+
+.gauche .documents .statut.error {
+  color: var(--dm-red);
+}
+
 .gauche .documents .supprimer {
   background: transparent;
   border: none;
 }
 
-/* Sidebar scrollbar */
+/* Thin purple/magenta scrollbar for the conversation list and the
+   document menu (the sidebar itself never scrolls). */
 
-.gauche::-webkit-scrollbar {
-  width: 5px;
+.liste-conversations::-webkit-scrollbar,
+.menu-documents::-webkit-scrollbar {
+  width: 6px;
 }
 
-.gauche::-webkit-scrollbar-thumb {
-  background: #424242;
+.liste-conversations::-webkit-scrollbar-thumb,
+.menu-documents::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(244, 114, 182, 0.7), rgba(139, 92, 246, 0.7));
   border-radius: 10px;
 }
 
-.gauche::-webkit-scrollbar-track {
+.liste-conversations::-webkit-scrollbar-thumb:hover,
+.menu-documents::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #f472b6, #a78bfa);
+}
+
+.liste-conversations::-webkit-scrollbar-track,
+.menu-documents::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Firefox (no ::-webkit-scrollbar): same look with the standard properties. */
+@supports not selector(::-webkit-scrollbar) {
+  .liste-conversations,
+  .menu-documents {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(192, 112, 220, 0.75) transparent;
+  }
 }
 
 /* ChatGPT-style attachment composer */
@@ -369,18 +468,19 @@ button:hover:not(:disabled) {
 .zone-composition {
   position: relative;
   width: 100%;
+  flex-shrink: 0;
 }
 
 .bouton-ajouter {
   border: none;
   background: transparent;
-  color: #f5f5f5;
+  color: var(--dm-text);
   font-size: 26px;
   padding: 4px 12px;
 }
 
 .bouton-ajouter:hover:not(:disabled) {
-  background: #404040;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .menu-documents {
@@ -391,10 +491,11 @@ button:hover:not(:disabled) {
   max-height: 360px;
   overflow-y: auto;
   padding: 14px;
-  background: #242424;
-  border: 1px solid #404040;
-  border-radius: 16px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  background: var(--dm-surface-soft);
+  border: 1px solid var(--dm-border);
+  border-radius: var(--dm-radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(16px);
   z-index: 20;
 }
 
@@ -404,7 +505,14 @@ button:hover:not(:disabled) {
   gap: 8px;
   padding: 10px;
   border-radius: 22px;
-  background: #303030;
+  background: var(--dm-surface);
+  border: 1px solid var(--dm-border);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.zone-composition .saisie:focus-within {
+  border-color: rgba(236, 72, 153, 0.5);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
 }
 
 .zone-composition .saisie input {
@@ -440,13 +548,13 @@ button:hover:not(:disabled) {
   background: transparent;
   border: none;
   border-radius: 10px;
-  color: #f5f5f5;
+  color: var(--dm-text);
   font-size: 14px;
   text-align: left;
 }
 
 .option-document:hover {
-  background: #383838;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .option-document span:first-child {
@@ -456,10 +564,14 @@ button:hover:not(:disabled) {
 .retour-documents {
   background: transparent;
   border: none;
-  color: #bcbcbc;
+  color: var(--dm-muted);
   padding: 8px 10px;
   margin-bottom: 10px;
   font-size: 13px;
+}
+
+.retour-documents:hover:not(:disabled) {
+  color: var(--dm-text);
 }
 
 /* New Chat sidebar action */
@@ -470,9 +582,9 @@ button:hover:not(:disabled) {
   gap: 12px;
   width: 100%;
   padding: 11px 12px;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(139, 92, 246, 0.18));
+  border: 1px solid var(--dm-border);
+  border-radius: 10px;
   color: #eeeeee;
   font-size: 14px;
   text-align: left;
@@ -483,10 +595,10 @@ button:hover:not(:disabled) {
 }
 
 .nouveau-chat:hover:not(:disabled) {
-  background: #292929;
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.3), rgba(139, 92, 246, 0.3));
 }
 
-/* ChatGPT-style PDF attachment card */
+/* Futuristic PDF attachment card (dark glass + neon document icon) */
 
 .piece-jointe {
   display: flex;
@@ -494,21 +606,38 @@ button:hover:not(:disabled) {
   gap: 12px;
   align-self: flex-start;
   width: fit-content;
-  max-width: 320px;
-  padding: 10px 14px;
-  background: var(--dm-surface);
-  border: 1px solid var(--dm-border);
-  border-radius: 12px;
+  max-width: min(320px, 100%);
+  padding: 10px 16px 10px 10px;
+  background: linear-gradient(150deg, rgba(48, 28, 62, 0.62), rgba(24, 16, 34, 0.72));
+  border: 1px solid rgba(167, 139, 250, 0.3);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
   text-align: left;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease;
 }
 
 .piece-jointe:hover {
-  background: #383838;
+  border-color: rgba(244, 114, 182, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 28px rgba(236, 72, 153, 0.22);
+  transform: translateY(-2px);
 }
 
 .piece-jointe-icone {
-  font-size: 24px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.3), rgba(139, 92, 246, 0.3));
+  border: 1px solid rgba(244, 114, 182, 0.35);
+  color: #f9a8d4;
   line-height: 1;
+}
+
+.piece-jointe-icone svg {
+  filter: drop-shadow(0 0 5px rgba(244, 114, 182, 0.8));
 }
 
 .piece-jointe-infos {
@@ -542,6 +671,18 @@ button:hover:not(:disabled) {
   display: flex;
   justify-content: flex-end;
   margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+/* Le contenu de la visionneuse PDF défile indépendamment du reste de
+   la page ; l'en-tête (bouton fermer) reste toujours visible. */
+.droite .viewer {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
 
 .fermer-visionneuse {
@@ -553,8 +694,489 @@ button:hover:not(:disabled) {
 }
 
 .fermer-visionneuse:hover {
-  background: #383838;
+  background: rgba(236, 72, 153, 0.15);
   color: var(--dm-text);
+}
+
+/* =====================================================================
+   Reference recreation — "Écran d'accueil futuriste DocuMind AI"
+   Proportions measured on the 1366x768 mock-up: sidebar ~16.8% wide,
+   composer ~830px centred, 68px from the bottom. Vertical spacing uses
+   vh-based clamp() so everything fits one viewport without scrolling.
+   ===================================================================== */
+
+.app {
+  grid-template-columns: clamp(220px, 16.8vw, 280px) minmax(0, 1fr) minmax(0, 1fr);
+  background: #0c0a10;
+}
+
+.app.viewer-ferme {
+  grid-template-columns: clamp(220px, 16.8vw, 280px) minmax(0, 1fr);
+}
+
+/* Main area: dark plum with pink glow top-right, violet arc on the
+   right edge and a soft pink glow along the left, as in the mock-up. */
+.centre {
+  position: relative;
+  isolation: isolate;
+  /* Slightly asymmetric padding: the mock-up's content column is
+     centred ~22px left of the main area's geometric centre. */
+  padding: 16px clamp(16px, 4.6vw, 64px) 0 clamp(16px, 1.4vw, 20px);
+  background:
+    radial-gradient(ellipse 34% 30% at 100% 0%, rgba(217, 70, 239, 0.3), transparent 70%),
+    radial-gradient(ellipse 13% 17% at 0% 56%, rgba(236, 72, 153, 0.34), transparent 75%),
+    radial-gradient(ellipse 55% 45% at 50% 28%, rgba(88, 28, 135, 0.2), transparent 70%),
+    #0d0a12;
+}
+
+/* Thin violet arc entering from the right edge (upper-left quarter of
+   a large off-screen circle), fading out downward like the mock-up. */
+.centre::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 90px;
+  right: -380px;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(196, 167, 255, 0.7);
+  box-shadow: 0 0 24px rgba(167, 139, 250, 0.45), inset 0 0 22px rgba(167, 139, 250, 0.25);
+  -webkit-mask-image: linear-gradient(to bottom, #000 18%, transparent 52%);
+  mask-image: linear-gradient(to bottom, #000 18%, transparent 52%);
+  pointer-events: none;
+}
+
+.messages {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+.messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+}
+
+/* ---------------------------------------------------------- Sidebar */
+
+.gauche {
+  padding: 22px 16px;
+  gap: 8px;
+  background:
+    radial-gradient(ellipse 130% 38% at 0% 100%, rgba(192, 38, 211, 0.22), transparent 70%),
+    #110c16;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gauche h1.marque {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 0 6px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #f7f3fb;
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+}
+
+.marque em {
+  font-style: normal;
+  background: linear-gradient(100deg, #f472b6, #c084fc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.marque-icone {
+  flex: none;
+  color: #f472b6;
+  filter: drop-shadow(0 0 6px rgba(244, 114, 182, 0.7));
+}
+
+.gauche .nouveau-chat {
+  flex: none;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 14px;
+  margin-bottom: 10px;
+  background: rgba(20, 12, 26, 0.6);
+  border: 1px solid rgba(236, 72, 153, 0.55);
+  border-radius: 12px;
+  color: #f7f3fb;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.12), 0 0 18px rgba(236, 72, 153, 0.12);
+}
+
+.gauche .nouveau-chat:hover:not(:disabled) {
+  background: rgba(236, 72, 153, 0.12);
+  border-color: rgba(244, 114, 182, 0.85);
+}
+
+.gauche .navigation-app {
+  flex: none;
+  gap: 6px;
+  margin: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.gauche .navigation-app button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #d9d0e6;
+  font-size: 14px;
+}
+
+.gauche .navigation-app button svg {
+  flex: none;
+  color: #f472b6;
+}
+
+.gauche .navigation-app button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.gauche .navigation-app button.actif,
+.gauche .navigation-app button.actif:hover:not(:disabled) {
+  background: linear-gradient(90deg, rgba(236, 72, 153, 0.32), rgba(139, 92, 246, 0.14));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.gauche .historique-conversations h3 {
+  margin: 14px 0 6px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #a99dbb;
+}
+
+.gauche .historique-conversations > p {
+  margin: 0;
+  padding: 0 8px;
+  font-size: 12.5px;
+  color: #8f84a3;
+}
+
+.gauche .conversation-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  color: #cfc6dc;
+}
+
+.gauche .conversation-item svg {
+  flex: none;
+  color: #8f84a3;
+}
+
+.gauche .conversation-item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------- Composer */
+
+.centre .zone-composition {
+  max-width: 830px;
+  margin: 0 auto;
+  padding: clamp(10px, 2.6vh, 22px) 0 clamp(14px, 8.9vh, 68px);
+}
+
+.zone-composition .saisie {
+  position: relative;
+  gap: 12px;
+  min-height: clamp(56px, 10.2vh, 78px);
+  padding: 0 clamp(10px, 1.2vw, 15px) 0 clamp(16px, 1.8vw, 24px);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(34, 20, 44, 0.72), rgba(22, 14, 30, 0.8));
+  border: 1px solid rgba(236, 72, 153, 0.55);
+  box-shadow:
+    inset 0 0 0 1px rgba(139, 92, 246, 0.14),
+    0 0 26px rgba(236, 72, 153, 0.18),
+    0 18px 40px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(14px);
+}
+
+/* Bright accent line along the bottom edge, as in the mock-up. */
+.zone-composition .saisie::after {
+  content: "";
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, rgba(244, 114, 182, 0.95), transparent);
+  pointer-events: none;
+}
+
+.zone-composition .saisie:focus-within {
+  border-color: rgba(244, 114, 182, 0.85);
+  box-shadow:
+    inset 0 0 0 1px rgba(139, 92, 246, 0.2),
+    0 0 34px rgba(236, 72, 153, 0.3),
+    0 18px 40px rgba(0, 0, 0, 0.4);
+}
+
+.saisie-etincelle {
+  flex: none;
+  color: #f472b6;
+  filter: drop-shadow(0 0 6px rgba(244, 114, 182, 0.6));
+}
+
+.zone-composition .saisie input {
+  padding: 0 4px;
+  font-size: clamp(14px, 2.05vh, 16px);
+  color: #efe8f7;
+}
+
+.zone-composition .saisie input::placeholder {
+  color: #9c90ae;
+}
+
+.zone-composition .saisie .bouton-ajouter {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #bfb3d1;
+}
+
+.zone-composition .saisie .bouton-ajouter:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+}
+
+.zone-composition .saisie .principal,
+.zone-composition .saisie .principal:hover:not(:disabled) {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: clamp(40px, 6.2vh, 48px);
+  height: clamp(40px, 6.2vh, 48px);
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f472b6, #ec4899 55%, #d946ef);
+  color: #ffffff;
+  box-shadow: 0 0 18px rgba(236, 72, 153, 0.55);
+}
+
+.zone-composition .saisie .principal:hover:not(:disabled) {
+  box-shadow: 0 0 26px rgba(236, 72, 153, 0.75);
+  transform: translateY(-1px);
+}
+
+.zone-composition .saisie .principal:disabled {
+  opacity: 0.75;
+}
+
+/* =====================================================================
+   Chat consistency with the welcome screen: message bubbles and document
+   cards. Every selector is scoped to .messages / .message* /
+   .menu-documents so nothing here can reach the PDF viewer.
+   ===================================================================== */
+
+.messages .message {
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.messages .message.user {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.42), rgba(139, 92, 246, 0.38));
+  border: 1px solid rgba(244, 114, 182, 0.35);
+  border-bottom-right-radius: 6px;
+  color: #ffffff;
+  box-shadow: 0 6px 22px rgba(139, 92, 246, 0.18);
+}
+
+.messages .message.assistant {
+  background: linear-gradient(155deg, rgba(40, 26, 56, 0.7), rgba(22, 15, 32, 0.78));
+  border: 1px solid rgba(167, 139, 250, 0.24);
+  border-bottom-left-radius: 6px;
+  color: #efe9f7;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 24px rgba(139, 92, 246, 0.07);
+}
+
+/* Warnings and errors keep their meaning (amber / red) in the same glass style */
+.messages .message.refus {
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.38);
+  border-radius: 18px;
+  color: #fdf2d0;
+}
+
+.messages .message.erreur {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-radius: 18px;
+  color: #ffe1e1;
+}
+
+/* Links and code inside answers */
+.messages .message a {
+  color: #f0abfc;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.messages .message a:hover {
+  color: #ffffff;
+}
+
+.messages .message code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  background: rgba(0, 0, 0, 0.35);
+  color: #f5d0fe;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.messages .message pre {
+  margin: 8px 0 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  background: rgba(8, 5, 14, 0.7);
+}
+
+.messages .message pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* Citations inside answers */
+.messages .message .verdict {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.messages .message .sources {
+  gap: 6px;
+}
+
+.messages .message .source {
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  background: rgba(255, 255, 255, 0.035);
+  color: #e9e2f3;
+}
+
+.messages .message .source:hover:not(:disabled) {
+  border-color: rgba(244, 114, 182, 0.5);
+  background: rgba(236, 72, 153, 0.08);
+}
+
+/* Document cards in the attachment / "Mes documents" menu */
+.menu-documents .documents ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.menu-documents .documents li {
+  margin: 0;
+  padding: 10px 12px;
+  gap: 2px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(167, 139, 250, 0.24);
+  background: linear-gradient(150deg, rgba(48, 28, 62, 0.55), rgba(24, 16, 34, 0.65));
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease;
+}
+
+.menu-documents .documents li:hover {
+  border-color: rgba(244, 114, 182, 0.5);
+  box-shadow: 0 6px 18px rgba(236, 72, 153, 0.15);
+  transform: translateY(-1px);
+}
+
+.menu-documents .documents li.ouvert {
+  border-color: rgba(244, 114, 182, 0.6);
+  background: linear-gradient(150deg, rgba(110, 44, 112, 0.45), rgba(34, 20, 46, 0.7));
+  box-shadow: 0 0 18px rgba(236, 72, 153, 0.15);
+}
+
+.menu-documents .documents li input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #ec4899;
+}
+
+.menu-documents .documents .nom {
+  min-width: 0;
+  color: #f3ecfa;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+/* Neon document glyph before each filename (CSS only, no markup change) */
+.menu-documents .documents .nom::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  vertical-align: -3px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f472b6' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8z'/%3E%3Cpath d='M14 3v4a1 1 0 0 0 1 1h4M8.5 12.5h7M8.5 16h5'/%3E%3C/svg%3E") center / contain no-repeat;
+  filter: drop-shadow(0 0 4px rgba(244, 114, 182, 0.7));
+}
+
+.menu-documents .documents .statut {
+  color: #a89cba;
+}
+
+.menu-documents .documents .statut.ready {
+  color: var(--dm-green);
+}
+
+.menu-documents .documents .statut.error {
+  color: var(--dm-red);
+}
+
+.menu-documents .documents .supprimer {
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #a89cba;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.menu-documents .documents .supprimer:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.14);
+  color: var(--dm-red);
 }
 
 

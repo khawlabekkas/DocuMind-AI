@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Documents from "./Documents.jsx";
+import DocuMindWelcome from "./DocuMindWelcome.jsx";
+import { IconeDocument, IconeEnvoyer, IconeEtincelle, IconeTrombone } from "./Icones.jsx";
 
 
 
@@ -11,7 +13,8 @@ import {
   obtenirMessages,
   importerDocument,
   listerDocuments,
-  telechargerTraductionPDF
+  telechargerTraductionPDF,
+  sauvegarderEchange
 } from "../api.js";
 
 
@@ -47,7 +50,9 @@ function Message({ m, onCitation, nomDocument, onOuvrirDocument }) {
         onClick={() => onOuvrirDocument(m.documentId)}
         title={m.nom}
       >
-        <span className="piece-jointe-icone">📄</span>
+        <span className="piece-jointe-icone">
+          <IconeDocument taille={22} epaisseur={1.6} />
+        </span>
         <span className="piece-jointe-infos">
           <span className="piece-jointe-nom">{m.nom}</span>
           <span className="piece-jointe-pages">
@@ -77,7 +82,66 @@ function Message({ m, onCitation, nomDocument, onOuvrirDocument }) {
   );
 }
 
+// Langue de la demande ("fr" ou "en") quand aucune langue cible n'est
+// précisée. Une langue explicite ("en anglais", "in French") reste
+// prioritaire : elle est gérée par detecterTraduction().
+const detecterLangueDemande = (texte) => {
+  const motsAnglais = new Set([
+    "make", "summary", "summery", "summarize", "summarise", "explain",
+    "give", "show", "tell", "please", "the", "this", "that", "these",
+    "those", "of", "into", "what", "how", "can", "could", "you", "about"
+  ]);
+  const motsFrancais = new Set([
+    "résume", "résumer", "résumé", "fais", "fait", "donne", "explique",
+    "expliquer", "traduis", "ce", "cet", "cette", "ces", "le", "la", "les",
+    "des", "du", "de", "un", "une", "moi", "sur", "pour", "avec", "et",
+    "mon", "ma", "mes", "peux", "pouvez", "je", "veux"
+  ]);
 
+  const q = texte.toLowerCase();
+  let anglais = 0;
+  let francais = /[éèêëàâùûçôîï]/.test(q) ? 2 : 0;
+
+  for (const mot of q.match(/[\p{L}']+/gu) || []) {
+    if (motsAnglais.has(mot)) anglais++;
+    if (motsFrancais.has(mot)) francais++;
+  }
+
+  // En cas d'égalité ou d'absence d'indice : français (comportement actuel).
+  return anglais > francais ? "en" : "fr";
+};
+
+// Traduit un texte en conservant les marqueurs de citation [1], [2][3]...
+// 1) un seul appel, marqueurs remplacés par des jetons puis restitués ;
+// 2) si un jeton est altéré, repli : seuls les morceaux entre les
+//    marqueurs sont traduits, les marqueurs ne sont jamais envoyés.
+const MARQUEUR_CITATION = /\[\d+(?:\s*,\s*\d+)*\]/g;
+
+const traduireEnGardantCitations = async (texte, langue) => {
+  const marqueurs = texte.match(MARQUEUR_CITATION) || [];
+  if (marqueurs.length === 0) return traduireTexte(texte, langue);
+
+  let n = 0;
+  const protege = texte.replace(MARQUEUR_CITATION, () => `⟦${n++}⟧`);
+  const traduit = await traduireTexte(protege, langue);
+
+  const intacts = marqueurs.every(
+    (_, k) => (traduit.match(new RegExp(`⟦${k}⟧`, "g")) || []).length === 1
+  );
+  if (intacts) {
+    return traduit.replace(/⟦(\d+)⟧/g, (_, k) => marqueurs[Number(k)] ?? "");
+  }
+
+  const morceaux = texte.split(/(\[\d+(?:\s*,\s*\d+)*\])/g);
+  const resultats = await Promise.all(
+    morceaux.map(async (m, k) => {
+      if (k % 2 === 1 || !/\p{L}/u.test(m)) return m;
+      const [, avant, coeur, apres] = m.match(/^(\s*)([\s\S]*?)(\s*)$/);
+      return avant + (await traduireTexte(coeur, langue)) + apres;
+    })
+  );
+  return resultats.join("");
+};
 
 export default function Chatbot({
   messagesSauvegardes,
@@ -182,6 +246,28 @@ useEffect(() => {
   const nomDocument = (id) => documents.find((d) => d.id === id)?.nom || id;
   const ajouter = (m) => setMessages((ms) => [...ms, m]);
 
+const enregistrerAnalyse = async (
+  question,
+  reponse,
+  citations = [],
+  type = "analysis"
+) => {
+  const resultat = await sauvegarderEchange({
+    conversation_id: conversationId || null,
+    question,
+    reponse,
+    citations,
+    type_interaction: type
+  });
+
+  if (!conversationId && resultat.conversation_id) {
+    onConversationCreated?.(resultat.conversation_id);
+  }
+
+  return resultat;
+};
+
+
   const executer = async (texteUtilisateur, appel) => {
     ajouter({ role: "user", texte: texteUtilisateur });
     setAttente(true);
@@ -203,6 +289,7 @@ if (r.conversation_id && onConversationCreated) {
         verdict: r.verdict,
         refus: r.refusal_reason,
       });
+
     } catch (e) {
       ajouter({ role: "erreur", texte: e.message });
     } finally {
@@ -224,19 +311,19 @@ const detecterTraduction = (texte) => {
   else if (/\b(espagnol|spanish)\b/i.test(q)) langue = "es";
 
   // 2. Intentions
-  const traduction =
-    /tradui\w*|traduction|translat\w*/i.test(q);
+  
+const traduction =
+  /tradui\w*|traduction|translat\w*/i.test(q);
 
-  // Demande explicite de téléchargement du PDF (sans forcément
-  // utiliser un verbe de traduction, ex. "télécharge le PDF en anglais").
-  const demandeTelechargement =
-    /t[ée]l[ée]charg\w*|download\w*/i.test(q);
+const demandeTelechargement =
+  /t[ée]l[ée]charg\w*|download\w*/i.test(q);
+
 
   const explication =
     /expliqu\w*|explication|explain\w*/i.test(q);
 
   const resume =
-    /r[ée]sum\w*|summari\w*|summariz\w*|summary/i.test(q);
+    /r[ée]sum\w*|r[ée]sm\w*|summ[ae]ri[sz]\w*|summ[ae]ry/i.test(q);
 
   // 3. Réponse précédente
   const precedent =
@@ -262,6 +349,13 @@ const detecterTraduction = (texte) => {
 
   // 6. Traduction d'une réponse précédente
   if (precedent && traduction && langue) {
+    return { type: "message", langue };
+  }
+
+  // 6b. "translate this summary / traduis l'explication en anglais" :
+  // c'est une traduction de réponse, pas un nouveau résumé ni une
+  // nouvelle explication.
+  if (traduction && langue && (resume || explication) && !documentPDF) {
     return { type: "message", langue };
   }
 
@@ -395,23 +489,33 @@ const document_id =
       page_fin: null
     });
 
-    let resume = resultat.result;
+    let texteResume = resultat.result;
 
-    // Translate the summary if a target language was requested.
-    if (intention.langue) {
-      resume = await traduireTexte(
-        resume,
-        intention.langue
+    // Langue explicite d'abord ; sinon langue de la demande (fr/en).
+    const langueReponse = intention.langue || detecterLangueDemande(q);
+
+    // Le résumé du backend est en français : on ne traduit que si besoin.
+    if (intention.langue || langueReponse !== "fr") {
+      texteResume = await traduireEnGardantCitations(
+        texteResume,
+        langueReponse
       );
     }
 
     ajouter({
       role: "assistant",
-      texte: resume,
+      texte: texteResume,
       citations: resultat.citations || [],
       verdict: null,
       refus: null
     });
+
+    await enregistrerAnalyse(
+      q,
+      texteResume,
+      resultat.citations || [],
+      "summarize"
+    );
 
   } catch (erreur) {
     ajouter({
@@ -491,22 +595,99 @@ if (intention?.type === "explication") {
     return;
   }
 
+  // Sépare le sujet à expliquer de la langue demandée
+  // ("Explique le RAG en anglais" -> sujet "le RAG", langue "en").
+  const nettoyerSujet = (texte) =>
+    texte
+      .replace(/\b(?:expliqu|explication|explain)[\p{L}]*/giu, " ")
+      .replace(/\b(?:en|in|dans|to)\s+(?:le\s+|la\s+)?(?:fran[cç]ais|french|anglais|english|arabe|arabic|espagnol|spanish)\b/giu, " ")
+      .replace(/\b(?:fran[cç]ais|french|anglais|english|arabe|arabic|espagnol|spanish)\b/giu, " ")
+      .replace(/\b(?:moi|me|s'il\s+(?:te|vous)\s+pla[iî]t|stp|svp|please|peux-tu|pouvez-vous|pourrais-tu|pourriez-vous|can you|could you|je veux|je voudrais|i want|i'd like|i would like)\b/giu, " ")
+      .replace(/(^|\s)-+(?=\s|$)/g, " ")
+      .replace(/[?!.,;:]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  let sujet = nettoyerSujet(q);
+
+  // Aucun sujet dans la phrase ("Explique en anglais") : on reprend le
+  // sujet de la demande précédente seulement si elle était une question
+  // ordinaire ou une explication ; sinon on demande une précision.
+  if (!sujet) {
+    const precedentUtilisateur = [...messages]
+      .reverse()
+      .find(
+        (message) =>
+          message.role === "user" &&
+          typeof message.texte === "string" &&
+          message.texte.trim()
+      );
+
+    const intentionPrecedente = precedentUtilisateur
+      ? detecterTraduction(precedentUtilisateur.texte)
+      : null;
+
+    if (
+      precedentUtilisateur &&
+      (!intentionPrecedente || intentionPrecedente.type === "explication")
+    ) {
+      sujet = nettoyerSujet(precedentUtilisateur.texte);
+    }
+  }
+
+  if (!sujet) {
+    ajouter({
+      role: "assistant",
+      texte:
+        "Que dois-je expliquer ? Précisez un sujet, par exemple « Explique le RAG en anglais », ou « Explique ce document en anglais ».",
+      citations: [],
+      verdict: null,
+      refus: null
+    });
+    return;
+  }
+
+  // "ce document", "le pdf"... : explication du document entier.
+  const expliquerDocument =
+    /^(?:tout\s+)?(?:(?:ce|cet|cette|le|la|this|the|mon|my)\s+)?(?:document|pdf|fichier|file|texte|text)(?:\s+(?:ci|entier|complet|en entier|entirely|whole))?$/i.test(sujet);
+
   setAttente(true);
 
   try {
-    const resultat = await lancerAnalyse({
-      document_id,
-      type: "explain",
-      section: q
-    });
+    const resultat = await lancerAnalyse(
+      expliquerDocument
+        ? { document_id, type: "full" }
+        : { document_id, type: "explain", section: sujet }
+    );
+
+    let texteExplication = resultat.result;
+
+    // Langue explicite d'abord ; sinon langue de la demande (fr/en).
+    const langueReponse = intention.langue || detecterLangueDemande(q);
+
+    // L'explication du backend est en français : on ne traduit que si besoin.
+    if (intention.langue || langueReponse !== "fr") {
+      texteExplication = await traduireEnGardantCitations(
+        texteExplication,
+        langueReponse
+      );
+    }
 
     ajouter({
       role: "assistant",
-      texte: resultat.result,
+      texte: texteExplication,
       citations: resultat.citations || [],
       verdict: null,
       refus: null
     });
+
+await enregistrerAnalyse(
+  q,
+  texteExplication,
+  resultat.citations || [],
+  "explain"
+);
+
   } catch (erreur) {
     console.error("Erreur explication :", erreur);
 
@@ -572,10 +753,7 @@ if (intention && intention.type !== "pdf") {
 
       <div className="messages">
         {messages.length === 0 && (
-          <div className="vide">
-            Importez un PDF, cochez-le, puis posez votre question.<br />
-            Chaque réponse cite ses sources : cliquez sur un numéro pour voir le passage surligné.
-          </div>
+          <DocuMindWelcome onQuickAction={(texte) => setQuestion(texte)} />
         )}
         {messages.map((m, i) => (
           <Message
@@ -645,6 +823,15 @@ if (intention && intention.type !== "pdf") {
 
 
   <form onSubmit={envoyer} className="saisie">
+    <IconeEtincelle className="saisie-etincelle" taille={22} />
+
+<input
+  value={question}
+  onChange={(e) => setQuestion(e.target.value)}
+  placeholder="Ask anything about your documents..."
+  disabled={attente}
+/>
+
     <button
       type="button"
       className="bouton-ajouter"
@@ -653,24 +840,16 @@ if (intention && intention.type !== "pdf") {
       aria-label="Ajouter ou sélectionner un PDF"
       aria-expanded={menuDocuments}
     >
-      +
+      <IconeTrombone taille={21} />
     </button>
-
-    
-<input
-  value={question}
-  onChange={(e) => setQuestion(e.target.value)}
-  placeholder="Posez une question sur vos documents..."
-  disabled={attente}
-/>
-
 
     <button
       type="submit"
       className="principal"
       disabled={attente || !question.trim()}
+      aria-label="Envoyer"
     >
-      ↑
+      <IconeEnvoyer taille={20} epaisseur={1.9} />
     </button>
   </form>
 </div>

@@ -1,0 +1,214 @@
+/* ===================================================================
+   DocuMind AI — Welcome screen (empty-chat state)
+   Scoped under .documind-welcome-root, reuses the --dm-* tokens
+   already defined in styles.css (same palette as Dashboard.css).
+
+   Proportions taken from the reference mock-up (1366x768): brain
+   ~300px, heading ~44px, subtitle ~19px, cards ~280x82. Vertical
+   sizes use vh-based clamp() and the brain area is the flexible
+   part, so the whole screen fits above the composer without scroll.
+   =================================================================== */
+
+.documind-welcome-root {
+  /* Fills .messages; on very small screens it becomes its own scroll
+     container (starting at the top) so .messages itself never overflows
+     and the chat's existing scroll-to-bottom effect can't cut the brain. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  padding: clamp(4px, 1.5vh, 16px) 16px clamp(8px, 3.8vh, 30px);
+  animation: documind-welcome-in 0.4s ease-out;
+}
+
+@keyframes documind-welcome-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Vertical centring via auto margins (instead of justify-content), which
+   collapse to 0 when the block overflows so the top stays reachable. */
+.documind-welcome-root > :first-child {
+  margin-top: auto;
+}
+
+.documind-welcome-root > :last-child {
+  margin-bottom: auto;
+}
+
+.documind-welcome-brain {
+  position: relative;
+  flex: 1 1 0;
+  width: 100%;
+  max-width: 760px;
+  min-height: 150px;
+  max-height: 440px;
+}
+
+.documind-brain-canvas {
+  position: absolute !important;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Repli 100% CSS (aucun WebGL) si le Canvas three.js ne peut pas
+   s'initialiser du tout dans le navigateur de l'utilisateur. */
+.documind-brain-fallback {
+  position: absolute;
+  inset: 20%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.45), rgba(139, 92, 246, 0.25) 60%, transparent 80%);
+  filter: blur(6px);
+  animation: documind-brain-fallback-pulse 3.2s ease-in-out infinite;
+}
+
+@keyframes documind-brain-fallback-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+
+/* Atmospheric glow behind the brain (no bloom package installed).
+   Sits under the canvas, so it never washes over the surface. */
+.documind-welcome-aura {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: min(62%, 460px);
+  aspect-ratio: 1.25;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(168, 85, 247, 0.32), rgba(236, 72, 153, 0.12) 55%, transparent 100%);
+  filter: blur(18px);
+  pointer-events: none;
+}
+
+/* Luminous ellipse beneath the brain, as in the reference. */
+.documind-welcome-socle {
+  position: absolute;
+  left: 50%;
+  bottom: 3%;
+  width: min(48%, 360px);
+  height: 9%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(244, 114, 182, 0.75), rgba(192, 38, 211, 0.35) 45%, transparent 100%);
+  filter: blur(6px);
+  pointer-events: none;
+}
+
+.documind-welcome-texte {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(4px, 1.1vh, 12px);
+  margin-top: clamp(0px, 0.6vh, 8px);
+}
+
+.documind-welcome-titre {
+  margin: 0;
+  font-size: clamp(26px, 5.7vh, 48px);
+  font-weight: 400;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  color: #f7f3fb;
+}
+
+.documind-welcome-titre span {
+  font-weight: 600;
+  background: linear-gradient(100deg, #f472b6 0%, #e879f9 45%, #c084fc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.documind-welcome-sous-titre {
+  margin: 0;
+  color: #b8adca;
+  font-size: clamp(13px, 2.45vh, 20px);
+  font-weight: 400;
+}
+
+.documind-welcome-cartes {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(14px, 1.9vw, 26px);
+  width: 100%;
+  max-width: 900px;
+  margin-top: clamp(12px, 5.3vh, 44px);
+}
+
+.documind-welcome-carte {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1.2vw, 16px);
+  height: clamp(58px, 10.7vh, 88px);
+  padding: 0 clamp(14px, 1.7vw, 24px);
+  border: 1px solid transparent;
+  border-radius: 18px;
+  background:
+    linear-gradient(140deg, rgba(110, 44, 112, 0.5) 0%, rgba(46, 24, 58, 0.55) 55%, rgba(28, 18, 38, 0.6) 100%) padding-box,
+    linear-gradient(135deg, rgba(244, 114, 182, 0.6), rgba(139, 92, 246, 0.22) 55%, rgba(255, 255, 255, 0.08)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 28px rgba(236, 72, 153, 0.08),
+    0 12px 32px rgba(0, 0, 0, 0.35);
+  color: #f7f3fb;
+  text-align: left;
+  backdrop-filter: blur(12px);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.documind-welcome-carte:hover:not(:disabled) {
+  transform: translateY(-3px);
+  background:
+    linear-gradient(140deg, rgba(130, 50, 130, 0.58) 0%, rgba(56, 28, 70, 0.6) 55%, rgba(32, 20, 44, 0.65) 100%) padding-box,
+    linear-gradient(135deg, rgba(244, 114, 182, 0.9), rgba(167, 139, 250, 0.4) 55%, rgba(255, 255, 255, 0.12)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 0 32px rgba(236, 72, 153, 0.14),
+    0 14px 36px rgba(236, 72, 153, 0.22);
+}
+
+.documind-welcome-carte-icone {
+  flex: none;
+  color: #f472b6;
+  filter: drop-shadow(0 0 8px rgba(244, 114, 182, 0.55));
+}
+
+.documind-welcome-carte-titre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(13.5px, 2.05vh, 16px);
+  font-weight: 600;
+}
+
+.documind-welcome-carte-fleche {
+  flex: none;
+  color: #cbbfdc;
+}
+
+@media (max-height: 640px) {
+  .documind-welcome-brain {
+    min-height: 110px;
+  }
+}
+
+@media (max-width: 760px) {
+  .documind-welcome-cartes {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 340px;
+  }
+}

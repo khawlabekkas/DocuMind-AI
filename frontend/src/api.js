@@ -114,5 +114,26 @@ export async function traduireTexte(texte, langue_cible) {
   return data.traduction;
 }
 
+export const sauvegarderEchange = ({
+  conversation_id = null,
+  question,
+  reponse,
+  citations = [],
+  verdict = null,
+  type_interaction = "analysis",
+}) =>
+  requete(
+    "/conversations/save-exchange",
+    json({
+      conversation_id,
+      question,
+      reponse,
+      citations,
+      verdict,
+      type_interaction,
+    })
+  );
+
+
 
 

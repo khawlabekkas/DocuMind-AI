@@ -4,6 +4,7 @@ import Chatbot from "./components/Chatbot.jsx";
 import PdfViewer from "./components/PdfViewer.jsx";
 import { listerConversations, obtenirMessages } from "./api.js";
 import Dashboard from "./components/Dashboard.jsx";
+import { IconeBulle, IconeCerveau, IconeGraphique, IconePlus } from "./components/Icones.jsx";
 
 export default function App() {
 
@@ -176,37 +177,42 @@ const handleConversationCreated = async (id) => {
 ) : (
       <>
       <aside className="colonne gauche">
-        <h1>DocuMind AI</h1>
-
-<div className="navigation-app">
-  <button
-    type="button"
-    onClick={() => setPageActive("chat")}
-  >
-    💬 Chatbot
-  </button>
-
-  <button
-    type="button"
-    onClick={() => setPageActive("dashboard")}
-  >
-    📊 Dashboard
-  </button>
-</div>
-
+        <h1 className="marque">
+          <IconeCerveau className="marque-icone" taille={30} epaisseur={1.5} />
+          <span>DocuMind <em>AI</em></span>
+        </h1>
 
 <button
   type="button"
   className="nouveau-chat"
   onClick={demarrerNouveauChat}
 >
-  <span>✎</span>
-  Nouveau chat
+  <IconePlus taille={18} />
+  New Chat
 </button>
+
+<div className="navigation-app">
+  <button
+    type="button"
+    className="actif"
+    onClick={() => setPageActive("chat")}
+  >
+    <IconeBulle taille={19} />
+    Chat
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setPageActive("dashboard")}
+  >
+    <IconeGraphique taille={19} />
+    Dashboard
+  </button>
+</div>
 
 
 <div className="historique-conversations">
-  <h3>Historique des conversations</h3>
+  <h3>Recent Conversations</h3>
 
   {conversations.length === 0 ? (
     <p>Aucune conversation enregistrée.</p>
@@ -222,9 +228,10 @@ const handleConversationCreated = async (id) => {
               : "conversation-item"
           }
           onClick={() => ouvrirConversation(conversation.id)}
-          
+          title={conversation.titre}
         >
-          💬 {conversation.titre}
+          <IconeBulle taille={17} />
+          <span>{conversation.titre}</span>
         </button>
       ))}
     </div>

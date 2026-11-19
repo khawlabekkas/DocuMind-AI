@@ -638,6 +638,52 @@ def api_ajouter_message(conversation_id: str, role: str, contenu: str, metadata:
             detail=str(e)
         )
     
+class SauvegardeEchange(BaseModel):
+    conversation_id: str | None = None
+    question: str
+    reponse: str
+    citations: list[dict] = []
+    verdict: str | None = None
+    type_interaction: str = "analysis"
+
+
+@app.post("/conversations/save-exchange")
+def sauvegarder_echange(d: SauvegardeEchange):
+    if not d.question.strip() or not d.reponse.strip():
+        raise HTTPException(400, "Question et réponse obligatoires.")
+
+    conversation_id = d.conversation_id
+
+    if conversation_id:
+        with db.connexion() as con:
+            existe = con.execute(
+                "SELECT id FROM conversations WHERE id = ?",
+                (conversation_id,)
+            ).fetchone()
+
+        if existe is None:
+            raise HTTPException(404, "Conversation introuvable.")
+    else:
+        conversation = db.creer_conversation(
+            titre=d.question[:60]
+        )
+        conversation_id = conversation["id"]
+
+    db.ajouter_message(conversation_id, "user", d.question)
+    db.ajouter_message(
+        conversation_id,
+        "assistant",
+        d.reponse,
+        metadata={
+            "citations": d.citations,
+            "verdict": d.verdict,
+            "type_interaction": d.type_interaction
+        }
+    )
+
+    return {"conversation_id": conversation_id, "saved": True}
+
+    
 # ------------------------------------------------- Dashboard API
 
 
