@@ -1180,4 +1180,119 @@ button:hover:not(:disabled) {
 }
 
 
+/* ===== DocuMind AI Scrollable History ===== */
+
+.gauche {
+  height: 100vh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.gauche .historique-conversations {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.gauche .historique-conversations > h3 {
+  flex-shrink: 0;
+}
+
+.gauche .liste-conversations {
+  flex: 1 1 auto;
+  min-height: 0;
+ height: 220px;
+max-height: 220px;
+flex: 0 0 220px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  padding-right: 8px;
+
+  scrollbar-width: thin;
+  scrollbar-color: #a855f7 transparent;
+}
+
+.gauche .liste-conversations::-webkit-scrollbar {
+  width: 5px;
+}
+
+.gauche .liste-conversations::-webkit-scrollbar-thumb {
+  background: #a855f7;
+  border-radius: 10px;
+}
+
+.gauche .liste-conversations::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ===== Structured AI Responses ===== */
+
+.texte-structure {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  line-height: 1.85;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.texte-structure .texte-titre {
+  margin: 14px 0 3px;
+  color: #f0c4ff;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.texte-structure h3 {
+  font-size: 1.25rem;
+}
+
+.texte-structure h4 {
+  font-size: 1.1rem;
+}
+
+.texte-structure h5 {
+  font-size: 1rem;
+}
+
+.texte-structure .texte-paragraphe {
+  margin: 0;
+  line-height: 1.85;
+}
+
+.texte-structure .texte-liste {
+  margin: 0;
+  padding-inline-start: 26px;
+  display: block;
+  list-style-position: outside;
+}
+
+.texte-structure .texte-liste li {
+  display: list-item;
+  margin-bottom: 10px;
+  padding-inline-start: 5px;
+}
+
+.texte-structure[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+  line-height: 2;
+}
+
+.texte-structure[dir="rtl"] .texte-liste {
+  padding-right: 28px;
+  padding-left: 0;
+}
+
+.texte-structure .pastille {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-inline: 4px;
+}
 

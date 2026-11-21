@@ -1,10 +1,66 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Documents from "./components/Documents.jsx";
 import Chatbot from "./components/Chatbot.jsx";
 import PdfViewer from "./components/PdfViewer.jsx";
 import { listerConversations, obtenirMessages } from "./api.js";
 import Dashboard from "./components/Dashboard.jsx";
 import { IconeBulle, IconeCerveau, IconeGraphique, IconePlus } from "./components/Icones.jsx";
+
+// Ordre d'affichage des groupes (du plus récent au plus ancien).
+const ORDRE_GROUPES_DATE = [
+  "Today",
+  "Yesterday",
+  "Previous 7 Days",
+  "Previous 30 Days",
+  "Older"
+];
+
+// Détermine le libellé de groupe (ChatGPT-like) à partir d'une date réelle.
+const libelleGroupeDate = (date, maintenant) => {
+  const debutJour = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const jours = Math.round(
+    (debutJour(maintenant) - debutJour(date)) / 86_400_000
+  );
+
+  if (jours <= 0) return "Today";
+  if (jours === 1) return "Yesterday";
+  if (jours <= 7) return "Previous 7 Days";
+  if (jours <= 30) return "Previous 30 Days";
+  return "Older";
+};
+
+// Regroupe les conversations par date réelle (updated_at/created_at).
+// Si une date est manquante ou invalide, on renonce au regroupement
+// plutôt que d'inventer une date, et on conserve l'ordre existant.
+const grouperConversationsParDate = (conversations) => {
+  const horodatageValide = (c) => {
+    const valeur = c.updated_at || c.created_at;
+    return valeur && !Number.isNaN(new Date(valeur).getTime());
+  };
+
+  if (!conversations.every(horodatageValide)) {
+    return [{ libelle: null, conversations }];
+  }
+
+  const maintenant = new Date();
+  const groupes = new Map();
+
+  for (const conversation of conversations) {
+    const date = new Date(conversation.updated_at || conversation.created_at);
+    const libelle = libelleGroupeDate(date, maintenant);
+
+    if (!groupes.has(libelle)) {
+      groupes.set(libelle, []);
+    }
+
+    groupes.get(libelle).push(conversation);
+  }
+
+  return ORDRE_GROUPES_DATE.filter((libelle) => groupes.has(libelle)).map(
+    (libelle) => ({ libelle, conversations: groupes.get(libelle) })
+  );
+};
+
 
 export default function App() {
 

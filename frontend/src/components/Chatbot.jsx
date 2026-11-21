@@ -20,24 +20,153 @@ import {
 
 
 // Transforme "texte [1] suite [2]" en texte + boutons cliquables
-function TexteCite({ texte, citations, onCitation }) {
-  const morceaux = texte.split(/(\[\d+(?:\s*,\s*\d+)*\])/g);
+
+function TexteCite({ texte, citations = [], onCitation }) {
+  const contenu = String(texte || "");
+
+  // Detect Arabic while keeping citations clickable.
+  const estArabe = /[\u0600-\u06FF]/.test(contenu);
+  const direction = estArabe ? "rtl" : "ltr";
+
+  const rendreAvecCitations = (ligne) => {
+    const morceaux = ligne.split(/(\[\d+(?:\s*,\s*\d+)*\])/g);
+
+    return morceaux.flatMap((m, i) => {
+      const nums = m.match(/^\[([\d,\s]+)\]$/);
+
+      if (!nums) return [<span key={`t-${i}`}>{m}</span>];
+
+      return nums[1].split(",").map((n, j) => {
+        const numero = Number(n.trim());
+        const citation = citations.find(
+          (c) => Number(c.numero) === numero
+        );
+
+        if (!citation) {
+          return <span key={`missing-${i}-${j}`}>[{numero}]</span>;
+        }
+
+        return (
+          <button
+            key={`citation-${i}-${j}`}
+            type="button"
+            className="pastille"
+            onClick={() => onCitation(citation)}
+            title={`Page ${citation.page}`}
+          >
+            {numero}
+          </button>
+        );
+      });
+    });
+  };
+
+  const lignes = contenu.split(/\r?\n/);
+  const blocs = [];
+  let paragraphe = [];
+  let liste = [];
+  let typeListe = null;
+
+  const viderParagraphe = () => {
+    if (!paragraphe.length) return;
+
+    blocs.push({
+      type: "paragraphe",
+      texte: paragraphe.join(" ")
+    });
+    paragraphe = [];
+  };
+
+  const viderListe = () => {
+    if (!liste.length) return;
+
+    blocs.push({
+      type: typeListe,
+      elements: liste
+    });
+
+    liste = [];
+    typeListe = null;
+  };
+
+  for (const ligne of lignes) {
+    const propre = ligne.trim();
+
+    if (!propre) {
+      viderParagraphe();
+      viderListe();
+      continue;
+    }
+
+    const titre = propre.match(/^(#{1,3})\s+(.+)$/);
+    const puce = propre.match(/^[-*•]\s+(.+)$/);
+    const numero = propre.match(/^\d+[.)]\s+(.+)$/);
+
+    if (titre) {
+      viderParagraphe();
+      viderListe();
+      blocs.push({
+        type: "titre",
+        niveau: titre[1].length,
+        texte: titre[2]
+      });
+    } else if (puce || numero) {
+      viderParagraphe();
+
+      const nouveauType = puce ? "ul" : "ol";
+
+      if (typeListe && typeListe !== nouveauType) {
+        viderListe();
+      }
+
+      typeListe = nouveauType;
+      liste.push((puce || numero)[1]);
+    } else {
+      viderListe();
+      paragraphe.push(propre);
+    }
+  }
+
+  viderParagraphe();
+  viderListe();
+
   return (
-    <p className="texte">
-      {morceaux.map((m, i) => {
-        const nums = m.match(/^\[([\d,\s]+)\]$/);
-        if (!nums) return <span key={i}>{m}</span>;
-        return nums[1].split(",").map((n) => {
-          const c = citations.find((x) => x.numero === Number(n.trim()));
-          return c ? (
-            <button key={i + n} className="pastille" onClick={() => onCitation(c)}
-                    title={`Page ${c.page}`}>{n.trim()}</button>
-          ) : null;
-        });
+    <div className="texte texte-structure" dir={direction}>
+      {blocs.map((bloc, i) => {
+        if (bloc.type === "titre") {
+          const Tag = `h${Math.min(bloc.niveau + 2, 5)}`;
+
+          return (
+            <Tag key={i} className="texte-titre">
+              {rendreAvecCitations(bloc.texte)}
+            </Tag>
+          );
+        }
+
+        if (bloc.type === "ul" || bloc.type === "ol") {
+          const Tag = bloc.type;
+
+          return (
+            <Tag key={i} className="texte-liste">
+              {bloc.elements.map((element, j) => (
+                <li key={j}>
+                  {rendreAvecCitations(element)}
+                </li>
+              ))}
+            </Tag>
+          );
+        }
+
+        return (
+          <p key={i} className="texte-paragraphe">
+            {rendreAvecCitations(bloc.texte)}
+          </p>
+        );
       })}
-    </p>
+    </div>
   );
 }
+
 
 function Message({ m, onCitation, nomDocument, onOuvrirDocument }) {
   if (m.role === "user") return <div className="message user">{m.texte}</div>;
