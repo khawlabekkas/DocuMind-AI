@@ -376,12 +376,38 @@ def analyser_document_complet(
 
     if debut == fin:
         consigne = (
-            f"Analyse uniquement la page {debut}. "
-            "Identifie son sujet, explique les concepts essentiels "
-            "et présente les idées importantes. "
-            "Utilise des titres Markdown, des paragraphes courts "
-            "et des listes à puces. "
-            "Conserve les citations [n]."
+            f"Analyse exclusivement le contenu de la page {debut}. "
+        "Agis comme un professeur expert qui explique le document "
+        "à un étudiant souhaitant comprendre le sujet en profondeur. "
+
+        "Commence par identifier le sujet exact et son objectif. "
+        "Pour chaque concept essentiel, explique : "
+        "ce qu'il signifie, comment il fonctionne et pourquoi "
+        "il est important dans le contexte du document. "
+
+        "Explique les relations entre les concepts. "
+        "Développe les exemples présents dans les extraits. "
+        "Présente les implications et les limites uniquement "
+        "lorsqu'elles sont justifiées par le contenu fourni. "
+
+        "Ne te contente pas de résumer ou de lister les idées. "
+        "Privilégie les explications pédagogiques et le raisonnement. "
+
+        "Structure la réponse avec des titres Markdown, "
+        "des paragraphes explicatifs courts et des listes "
+        "uniquement lorsqu'elles facilitent la compréhension. "
+
+        "Conserve les citations [n] et n'invente aucune information. "
+        "Respecte la langue demandée dans les instructions système."
+        "Commence directement par un titre décrivant le sujet, "
+"sans salutation ni présentation de ton rôle. "
+
+"Écris toujours les citations exactement au format [n], "
+"jamais sous forme de nombres isolés. "
+
+"Si tu ajoutes une analogie pédagogique, présente-la "
+"explicitement comme une illustration et non comme "
+"une information provenant du document. "
         )
     else:
         consigne = (
