@@ -13,11 +13,12 @@ Format de sortie (POST /analysis/run) :
 
 import time
 
+
 from rag_agent import generer_citations
 
 
 MAX_CARACTERES = 8_000
-  # au-delà, on découpe (map-reduce)
+# Au-delà, on découpe (map-reduce)
 
 SYSTEME = """Tu es DocuMind. Tu travailles UNIQUEMENT à partir des extraits fournis.
 Cite tes sources avec le numéro de l'extrait entre crochets, ex. [1] ou [2][3].
@@ -188,15 +189,12 @@ def resumer_document(
 
 
 
-def _map_reduce(passages, llm, consigne, systeme=SYSTEME):
-    """
-    Résumé hiérarchique :
-    MAP : résumer les lots de passages.
-    REDUCE : fusionner progressivement les résumés.
-    """
+def _map_reduce(passages, llm, consigne, systeme=SYSTEME, mode="resume"):
+    """MAP-REDUCE avec instructions distinctes pour résumé et analyse."""
     LIMITE_FUSION = 6_000
+    if mode not in ("resume", "analyse"):
+        raise ValueError("Mode MAP-REDUCE invalide.")
 
-    # MAP : résumé de chaque lot
     partiels = []
     decalage = 0
 
@@ -205,22 +203,68 @@ def _map_reduce(passages, llm, consigne, systeme=SYSTEME):
             f"[{decalage + i}] (page {p['page']})\n{p['texte']}"
             for i, p in enumerate(lot, start=1)
         )
+        if mode == "analyse":
+            instruction_map = (
+                "Identifie les concepts essentiels, leur fonctionnement, "
+                "leurs relations, leurs implications et leurs limites. "
+                "Explique brièvement pourquoi chaque concept est important. "
+                "Conserve les exemples pertinents présents dans les extraits. "
+                "Produis des notes analytiques concises de 150 à 200 mots maximum. "
+                "Conserve les citations exactement au format [n]. "
+                "N'invente aucune information. "
+            )
+        else:
+            instruction_map = (
+                "Produis un résumé très concis de 150 à 200 mots maximum. "
+                "Conserve uniquement les idées essentielles et les citations. "
+                "N'ajoute aucune introduction inutile. "
+            )
 
         resume = llm(
             f"{consigne}. Cite tes sources avec les numéros [n]. "
-            "Produis un résumé très concis de 150 à 200 mots maximum. "
-            "Conserve uniquement les idées essentielles et les citations. "
-            "N'ajoute aucune introduction inutile.\n\n"
-            f"EXTRAITS :\n{bloc}",
-            systeme
+            + instruction_map + f"\n\nEXTRAITS :\n{bloc}",
+            systeme,
         )
-
         partiels.append(resume)
         decalage += len(lot)
 
+    if mode == "analyse":
+        consigne_finale = (
+            "Réalise une analyse experte et pédagogique du document "
+            "à partir des notes analytiques fournies. "
+            "Identifie le sujet et l'objectif du document. "
+            "Explique les concepts importants, leur fonctionnement et leur utilité. "
+            "Relie les idées de différentes sections lorsque les sources le permettent. "
+            "Explique les implications, limites et points de vigilance documentés. "
+            "Ne produis pas un simple résumé des notes. "
+            "Structure avec un titre ##, des sous-titres ### et des paragraphes clairs. "
+            "Commence directement par le titre, sans salutation. "
+            "Distingue les analogies pédagogiques des faits du document. "
+            "Conserve les citations exactement au format [n]. "
+            "N'invente aucune information. "
+            "Respecte la langue demandée dans les instructions système. "
+            "Retourne uniquement l'analyse structurée.\n\n"
+        )
+    else:
+        consigne_finale = (
+            "Fusionne ces résumés en une synthèse finale cohérente. "
+            "Conserve les citations [n] après les informations correspondantes. "
+            "N'invente aucune information. "
+            "Présente le résultat en Markdown avec : "
+            "un titre principal commençant par ##, "
+            "des sous-titres pertinents commençant par ###, "
+            "des paragraphes courts et quelques listes à puces. "
+            "Adapte les titres au sujet du document. "
+            "Évite les répétitions et les longs blocs de texte. "
+            "Respecte la langue demandée dans les instructions système. "
+            "Retourne uniquement la synthèse structurée.\n\n"
+        )
 
+    # Cas d'un seul lot : l'analyse a aussi besoin d'une passe finale.
+    # Pour le résumé, on conserve le comportement historique.
+    if len(partiels) == 1 and mode == "analyse":
+        return llm(consigne_finale + partiels[0], systeme)
 
-    # REDUCE : fusion progressive
     while len(partiels) > 1:
         nouveaux = []
         groupe = []
@@ -231,49 +275,37 @@ def _map_reduce(passages, llm, consigne, systeme=SYSTEME):
                 nouveaux.append(groupe)
                 groupe = []
                 taille = 0
-
             groupe.append(resume)
             taille += len(resume)
 
         if groupe:
             nouveaux.append(groupe)
 
-        # Si les résumés sont déjà assez courts,
-        # les fusionner directement.
         if len(nouveaux) == 1:
-             consigne_finale = (
-        "Fusionne ces résumés en une synthèse finale cohérente. "
-        "Conserve les citations [n] après les informations correspondantes. "
-        "N'invente aucune information. "
-
-        "Présente le résultat en Markdown avec : "
-        "un titre principal commençant par ##, "
-        "des sous-titres pertinents commençant par ###, "
-        "des paragraphes courts et quelques listes à puces. "
-
-        "Adapte les titres au sujet du document. "
-        "Évite les répétitions et les longs blocs de texte. "
-        "Respecte la langue demandée dans les instructions système. "
-        "Retourne uniquement la synthèse structurée.\n\n"
-    )
-             return llm(
-                consigne_finale
-                + "\n\n---\n\n".join(partiels),
-                systeme
+            return llm(
+                consigne_finale + "\n\n---\n\n".join(partiels),
+                systeme,
             )
 
         partiels_suivants = []
-
         for groupe in nouveaux:
             if len(groupe) == 1:
                 partiels_suivants.append(groupe[0])
             else:
+                if mode == "analyse":
+                    instruction_fusion = (
+                        "Fusionne ces notes analytiques en conservant les concepts, "
+                        "leurs relations, leurs implications et les citations [n]. "
+                        "Reste concis, évite les répétitions et n'invente rien.\n\n"
+                    )
+                else:
+                    instruction_fusion = (
+                        "Fusionne ces résumés partiels. "
+                        "Conserve les informations importantes et les citations [n].\n\n"
+                    )
                 fusion = llm(
-                    "Fusionne ces résumés partiels. "
-                    "Conserve les informations importantes "
-                    "et les citations [n].\n\n"
-                    + "\n\n---\n\n".join(groupe),
-                    systeme
+                    instruction_fusion + "\n\n---\n\n".join(groupe),
+                    systeme,
                 )
                 partiels_suivants.append(fusion)
 
@@ -282,19 +314,16 @@ def _map_reduce(passages, llm, consigne, systeme=SYSTEME):
             "avant =", len(partiels),
             "apres =", len(partiels_suivants),
             "tailles =", [len(r) for r in partiels],
-            flush=True
+            flush=True,
         )
-
         if len(partiels_suivants) >= len(partiels):
             raise RuntimeError(
                 "Impossible de réduire les résumés : "
                 "un résumé individuel dépasse la limite."
             )
-
         partiels = partiels_suivants
 
     return partiels[0] if partiels else ""
-
 
 
 # ----------------------------------------------------------- Explication
@@ -411,9 +440,38 @@ def analyser_document_complet(
         )
     else:
         consigne = (
-            "Analyse ce document : 1) sujet et objectif "
-            "2) structure (parties et pages) "
-            "3) idées clés 4) conclusion"
+             "Réalise une analyse approfondie de l'ensemble du document fourni. "
+        "Agis comme un expert du domaine qui explique les informations "
+        "avec rigueur et pédagogie. "
+
+        "Commence par identifier le sujet exact, l'objectif principal "
+        "et le contexte du document. "
+
+        "Analyse les différentes sections dans un ordre logique. "
+        "Pour chaque concept important, explique sa signification, "
+        "son fonctionnement et son importance dans le document. "
+
+        "Identifie les relations entre les concepts présentés "
+        "dans différentes sections ou pages. "
+        "Explique comment les idées se complètent, se renforcent "
+        "ou se distinguent. "
+
+        "Développe les exemples et applications présents dans le document. "
+        "Présente les implications, les limites ou les points de vigilance "
+        "uniquement lorsqu'ils sont justifiés par les sources. "
+
+        "Ne produis pas un simple résumé des sections. "
+        "Privilégie les explications, les liens logiques "
+        "et l'interprétation des informations. "
+
+        "Organise la réponse avec des titres Markdown clairs, "
+        "des sous-sections et des paragraphes explicatifs. "
+        "Utilise les listes uniquement lorsqu'elles améliorent la lisibilité. "
+
+        "Commence directement par un titre pertinent, sans salutation. "
+        "Conserve les citations exactement au format [n]. "
+        "Distingue les analogies pédagogiques des faits du document. "
+        "N'invente aucune information et respecte la langue demandée."
         )
 
     if sum(len(p["texte"]) for p in passages) <= MAX_CARACTERES:
@@ -427,7 +485,8 @@ def analyser_document_complet(
             passages,
             llm,
             consigne,
-            systeme=systeme_analyse
+            systeme=systeme_analyse,
+            mode="analyse"
         )
 
     return _resultat(
