@@ -27,6 +27,19 @@ function TexteCite({ texte, citations = [], onCitation }) {
   // Detect Arabic while keeping citations clickable.
   const estArabe = /[\u0600-\u06FF]/.test(contenu);
   const direction = estArabe ? "rtl" : "ltr";
+  const rendreMarkdown = (texte) => {
+  return texte.split(/(\*\*.*?\*\*|\*[^*\n]+\*)/g).map((partie, i) => {
+    if (partie.startsWith("**") && partie.endsWith("**")) {
+      return <strong key={i}>{partie.slice(2, -2)}</strong>;
+    }
+
+    if (partie.startsWith("*") && partie.endsWith("*")) {
+      return <em key={i}>{partie.slice(1, -1)}</em>;
+    }
+
+    return partie;
+  });
+};
 
   const rendreAvecCitations = (ligne) => {
     const morceaux = ligne.split(/(\[\d+(?:\s*,\s*\d+)*\])/g);
@@ -34,7 +47,13 @@ function TexteCite({ texte, citations = [], onCitation }) {
     return morceaux.flatMap((m, i) => {
       const nums = m.match(/^\[([\d,\s]+)\]$/);
 
-      if (!nums) return [<span key={`t-${i}`}>{m}</span>];
+      if (!nums) {
+  return [
+    <span key={`t-${i}`}>
+      {rendreMarkdown(m)}
+    </span>
+  ];
+}
 
       return nums[1].split(",").map((n, j) => {
         const numero = Number(n.trim());
