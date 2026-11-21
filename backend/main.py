@@ -9,6 +9,8 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 import database as db
+from time import perf_counter
+from rag_pipeline import charger_modele
 
 from dotenv import load_dotenv
 
@@ -62,11 +64,46 @@ etat = Etat()
 async def lifespan(app):
     db.initialiser()
     os.makedirs(DOSSIER_UPLOADS, exist_ok=True)
-    etat.moteur.recharger(db.tous_les_chunks())   # index reconstruit au démarrage
+
+    # Rebuild the existing document index
+    etat.moteur.recharger(db.tous_les_chunks())
+
+    # Preload BGE-M3 once before accepting requests
+    print("[STARTUP] Loading BGE-M3...", flush=True)
+    debut = perf_counter()
+
+    charger_modele()
+
+    print(
+        f"[STARTUP] BGE-M3 ready in {perf_counter() - debut:.2f}s",
+        flush=True
+    )
+
     yield
 
 
 app = FastAPI(title="DocuMind AI", lifespan=lifespan)
+@app.middleware("http")
+async def mesurer_temps_reponse(request, call_next):
+    debut = perf_counter()
+
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        duree = perf_counter() - debut
+
+        if request.url.path in {
+            "/chat/ask",
+            "/analysis/run",
+            "/translation/text",
+            "/translation/run",
+            "/translation/export/pdf",
+        }:
+            print(
+                f"[PERFORMANCE] {request.url.path} : {duree:.2f}s",
+                flush=True
+            )
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"],
                    allow_methods=["*"], allow_headers=["*"])
 
@@ -252,7 +289,7 @@ def analyse(d: DemandeAnalyse):
     try:
         if d.type == "summarize":
             res = resumer_document(d.document_id, pages, etat.llm, db.obtenir_positions,
-                                   d.page_debut, d.page_fin)
+                                   d.page_debut, d.page_fin,langue=d.langue)
         elif d.type == "explain":
             if not d.section:
                 raise HTTPException(400, "Précisez la section ou le concept à expliquer.")

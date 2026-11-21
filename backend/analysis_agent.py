@@ -15,7 +15,7 @@ import time
 
 from rag_agent import generer_citations
 
- 
+
 MAX_CARACTERES = 8_000
   # au-delà, on découpe (map-reduce)
 
@@ -85,23 +85,87 @@ def _resultat(type_, scope, passages, texte, obtenir_positions):
 
 
 # --------------------------------------------------------------- Résumé
-def resumer_document(document_id: str, pages: list[dict], llm, obtenir_positions,
-                     page_debut: int | None = None, page_fin: int | None = None) -> dict:
+
+def resumer_document(
+    document_id: str,
+    pages: list[dict],
+    llm,
+    obtenir_positions,
+    page_debut: int | None = None,
+    page_fin: int | None = None,
+    langue: str = "fr"
+) -> dict:
+    langues = {
+        "fr": "français",
+        "en": "anglais",
+        "es": "espagnol",
+        "ar": "arabe"
+    }
+
+    langue = langue if langue in langues else "fr"
+
+    systeme_resume = (
+        "Tu es DocuMind. Travaille uniquement à partir "
+        "des extraits fournis. "
+        "Conserve les citations [n] et n'invente aucune information. "
+        f"Rédige tout le résumé en {langues[langue]}."
+    )
+
     page_debut = page_debut or 1
     page_fin = page_fin or len(pages)
-    choisies = [p for p in pages if page_debut <= p["page"] <= page_fin]
+
+    choisies = [
+        p for p in pages
+        if page_debut <= p["page"] <= page_fin
+    ]
+
     passages = _pages_comme_passages(choisies, document_id)
-    scope = {"document_id": document_id, "page_debut": page_debut, "page_fin": page_fin}
+
+    scope = {
+        "document_id": document_id,
+        "page_debut": page_debut,
+        "page_fin": page_fin
+    }
+
     if not passages:
-        return {"type": "summarize", "scope": scope, "sections": [], "citations": [],
-                "result": "Aucun texte exploitable sur ces pages."}
+        return {
+            "type": "summarize",
+            "scope": scope,
+            "sections": [],
+            "citations": [],
+            "result": "Aucun texte exploitable sur ces pages."
+        }
+    nombre_caracteres = sum(len(p["texte"]) for p in passages)
+
+    print(
+        f"[SUMMARY DEBUG] Pages: {len(choisies)} | "
+        f"Characters: {nombre_caracteres} | "
+        f"Limit: {MAX_CARACTERES} | "
+        f"Mode: {'DIRECT' if nombre_caracteres <= MAX_CARACTERES else 'MAP_REDUCE'}",
+        flush=True
+    )
 
     if sum(len(p["texte"]) for p in passages) <= MAX_CARACTERES:
-        texte = llm("Résume ces extraits en 5 à 10 points clés, avec citations.\n\n"
-                    + _numeroter(passages), SYSTEME)
+        texte = llm(
+            "Résume ces extraits en 5 à 10 points clés, "
+            "avec citations.\n\n" + _numeroter(passages),
+            systeme_resume
+        )
     else:
-        texte = _map_reduce(passages, llm, "Résume en points clés")
-    return _resultat("summarize", scope, passages, texte, obtenir_positions)
+        texte = _map_reduce(
+            passages,
+            llm,
+            "Résume en points clés",
+            systeme=systeme_resume
+        )
+
+    return _resultat(
+        "summarize",
+        scope,
+        passages,
+        texte,
+        obtenir_positions
+    )
 
 
 
@@ -135,9 +199,7 @@ def _map_reduce(passages, llm, consigne, systeme=SYSTEME):
         partiels.append(resume)
         decalage += len(lot)
 
-        # Espacer les appels Groq pour réduire les pics de consommation.
-        if decalage < len(passages):
-            time.sleep(15)
+
 
     # REDUCE : fusion progressive
     while len(partiels) > 1:

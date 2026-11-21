@@ -1,5 +1,6 @@
 
 from llm import appeler_groq
+from time import perf_counter
 
 LANGUES = {
     "fr": "français",
@@ -39,7 +40,21 @@ def traduire_texte(
         f"<texte>\n{texte}\n</texte>"
     )
 
-    return llm(prompt, systeme)
+    debut = perf_counter()
+
+    print(
+        f"[TRANSLATION] Input: {len(texte)} characters",
+        flush=True
+    )
+
+    resultat = llm(prompt, systeme)
+
+    print(
+        f"[TRANSLATION] Groq call: {perf_counter() - debut:.2f}s",
+        flush=True
+    )
+
+    return resultat
 
 from pdf_extract import charger_document, extraire_pages
 

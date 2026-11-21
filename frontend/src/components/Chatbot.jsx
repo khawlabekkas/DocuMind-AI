@@ -131,6 +131,14 @@ const traduireEnGardantCitations = async (texte, langue) => {
   if (intacts) {
     return traduit.replace(/⟦(\d+)⟧/g, (_, k) => marqueurs[Number(k)] ?? "");
   }
+  console.warn(
+  "[TRANSLATION] Citation markers not preserved; using fallback.",
+  {
+    expected: marqueurs.length,
+    originalMarkers: protege.match(/⟦\d+⟧/g),
+    translatedMarkers: traduit.match(/⟦\d+⟧/g)
+  }
+);
 
   const morceaux = texte.split(/(\[\d+(?:\s*,\s*\d+)*\])/g);
   const resultats = await Promise.all(
@@ -521,26 +529,19 @@ const document_id =
   setAttente(true);
 
   try {
+    // Langue explicite d'abord ; sinon langue de la demande (fr/en).
+    const langueReponse = intention.langue || detecterLangueDemande(q);
+
     const resultat = await lancerAnalyse({
       document_id,
       type: "summarize",
       section: null,
       page_debut: null,
-      page_fin: null
+      page_fin: null,
+      langue: langueReponse
     });
 
-    let texteResume = resultat.result;
-
-    // Langue explicite d'abord ; sinon langue de la demande (fr/en).
-    const langueReponse = intention.langue || detecterLangueDemande(q);
-
-    // Le résumé du backend est en français : on ne traduit que si besoin.
-    if (intention.langue || langueReponse !== "fr") {
-      texteResume = await traduireEnGardantCitations(
-        texteResume,
-        langueReponse
-      );
-    }
+    const texteResume = resultat.result;
 
     ajouter({
       role: "assistant",
