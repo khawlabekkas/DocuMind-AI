@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 import database as db
 from time import perf_counter
 from rag_pipeline import charger_modele
+import re
 
 from dotenv import load_dotenv
 
@@ -180,10 +181,28 @@ def supprimer(doc_id: str):
 
 
 # ===================================================================== Chat
+
 class Question(BaseModel):
     question: str
     document_ids: list[str] | None = None
     conversation_id: str | None = None
+
+
+def detecter_page_analyse(question: str) -> int | None:
+    texte = question.strip().lower()
+
+    motifs = [
+        r"\b(?:analyse|analyser|analyze|analiza)\s+(?:uniquement\s+)?(?:la\s+|the\s+)?(?:page|página)\s+(\d+)\b",
+        r"(?:حلل|حلّل|تحليل)\s+(?:الصفحة|صفحة)\s+(\d+)"
+    ]
+
+    for motif in motifs:
+        correspondance = re.search(motif, texte)
+
+        if correspondance:
+            return int(correspondance.group(1))
+
+    return None
 
 
 
@@ -217,17 +236,56 @@ def ask(q: Question):
     # Keep the last 6 messages for contextual memory
     historique = historique[-6:]
 
+    
     try:
-        res = agent_rag(
-            q.question,
-            etat.moteur.rechercher,
-            etat.llm,
-            db.obtenir_positions,
-            document_ids=q.document_ids,
-            guard=etat.guard,
-            fact_check=etat.fact_check,
-            historique=historique
-        )
+        numero_page = detecter_page_analyse(q.question)
+
+        if numero_page is not None and q.document_ids and len(q.document_ids) == 1:
+            document_id = q.document_ids[0]
+
+            if not db.obtenir_document(document_id):
+                raise HTTPException(404, "Document introuvable.")
+
+            pages = db.obtenir_pages(document_id)
+
+            if numero_page < 1 or numero_page > len(pages):
+                raise HTTPException(
+                    400,
+                    f"La page {numero_page} n'existe pas dans ce document."
+                )
+
+            analyse_page = analyser_document_complet(
+                document_id,
+                pages,
+                etat.llm,
+                db.obtenir_positions,
+                langue="fr",
+                page_debut=numero_page,
+                page_fin=numero_page
+            )
+
+            res = {
+                "answer": analyse_page["result"],
+                "status": "answered",
+                "citations": analyse_page.get("citations", []),
+                "verdict": None,
+                "refusal_reason": None
+            }
+
+        else:
+            res = agent_rag(
+                q.question,
+                etat.moteur.rechercher,
+                etat.llm,
+                db.obtenir_positions,
+                document_ids=q.document_ids,
+                guard=etat.guard,
+                fact_check=etat.fact_check,
+                historique=historique
+            )
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(502, f"Erreur du modèle : {e}")
 
@@ -296,13 +354,15 @@ def analyse(d: DemandeAnalyse):
             res = expliquer_section(d.document_id, d.section, etat.moteur.rechercher,
                                     etat.llm, db.obtenir_positions)
         elif d.type == "full":
-           res = analyser_document_complet(
-        d.document_id,
-        pages,
-        etat.llm,
-        db.obtenir_positions,
-        langue=d.langue
-    )
+            res = analyser_document_complet(
+                d.document_id,
+                pages,
+                etat.llm,
+                db.obtenir_positions,
+                langue=d.langue,
+                page_debut=d.page_debut,
+                page_fin=d.page_fin
+            )
         else:
             raise HTTPException(400, "type doit être summarize, explain ou full.")
     except HTTPException:

@@ -241,9 +241,23 @@ def _map_reduce(passages, llm, consigne, systeme=SYSTEME):
         # Si les résumés sont déjà assez courts,
         # les fusionner directement.
         if len(nouveaux) == 1:
-            return llm(
-                "Fusionne ces résumés en un résumé final cohérent. "
-                "Conserve les citations [n].\n\n"
+             consigne_finale = (
+        "Fusionne ces résumés en une synthèse finale cohérente. "
+        "Conserve les citations [n] après les informations correspondantes. "
+        "N'invente aucune information. "
+
+        "Présente le résultat en Markdown avec : "
+        "un titre principal commençant par ##, "
+        "des sous-titres pertinents commençant par ###, "
+        "des paragraphes courts et quelques listes à puces. "
+
+        "Adapte les titres au sujet du document. "
+        "Évite les répétitions et les longs blocs de texte. "
+        "Respecte la langue demandée dans les instructions système. "
+        "Retourne uniquement la synthèse structurée.\n\n"
+    )
+             return llm(
+                consigne_finale
                 + "\n\n---\n\n".join(partiels),
                 systeme
             )
@@ -306,12 +320,15 @@ def expliquer_section(document_id: str, section: str, rechercher, llm,
 
 
 # ------------------------------------------------------- Analyse complète
+
 def analyser_document_complet(
     document_id: str,
     pages: list[dict],
     llm,
     obtenir_positions,
-    langue: str = "fr"
+    langue: str = "fr",
+    page_debut: int | None = None,
+    page_fin: int | None = None
 ) -> dict:
     langues = {
         "fr": "français",
@@ -327,13 +344,52 @@ def analyser_document_complet(
         "Conserve les citations [n] et n'invente aucune information. "
         f"Rédige toute l'analyse en {langues[langue]}."
     )
-    passages = _pages_comme_passages(pages, document_id)
-    scope = {"document_id": document_id, "page_debut": 1, "page_fin": len(pages)}
+
+    # Filtrer uniquement les pages demandées
+    debut = 1 if page_debut is None else page_debut
+    fin = len(pages) if page_fin is None else page_fin
+
+    if debut < 1 or fin < debut or fin > len(pages):
+        raise ValueError("Plage de pages invalide.")
+
+    choisies = [
+        p for p in pages
+        if debut <= p["page"] <= fin
+    ]
+
+    passages = _pages_comme_passages(choisies, document_id)
+
+    scope = {
+        "document_id": document_id,
+        "page_debut": debut,
+        "page_fin": fin
+    }
+
     if not passages:
-        return {"type": "full", "scope": scope, "sections": [], "citations": [],
-                "result": "Aucun texte exploitable dans ce PDF."}
-    consigne = ("Analyse ce document : 1) sujet et objectif 2) structure (parties et pages) "
-                "3) idées clés 4) conclusion")
+        return {
+            "type": "full",
+            "scope": scope,
+            "sections": [],
+            "citations": [],
+            "result": "Aucun texte exploitable sur ces pages."
+        }
+
+    if debut == fin:
+        consigne = (
+            f"Analyse uniquement la page {debut}. "
+            "Identifie son sujet, explique les concepts essentiels "
+            "et présente les idées importantes. "
+            "Utilise des titres Markdown, des paragraphes courts "
+            "et des listes à puces. "
+            "Conserve les citations [n]."
+        )
+    else:
+        consigne = (
+            "Analyse ce document : 1) sujet et objectif "
+            "2) structure (parties et pages) "
+            "3) idées clés 4) conclusion"
+        )
+
     if sum(len(p["texte"]) for p in passages) <= MAX_CARACTERES:
         texte = llm(
             f"{consigne}. Cite tes sources.\n\nEXTRAITS :\n"
@@ -347,4 +403,11 @@ def analyser_document_complet(
             consigne,
             systeme=systeme_analyse
         )
-    return _resultat("full", scope, passages, texte, obtenir_positions)
+
+    return _resultat(
+        "full",
+        scope,
+        passages,
+        texte,
+        obtenir_positions
+    )
