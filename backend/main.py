@@ -204,6 +204,21 @@ def detecter_page_analyse(question: str) -> int | None:
 
     return None
 
+def detecter_langue_question(question: str) -> str:
+    texte = question.strip().lower()
+
+    if re.search(r"[\u0600-\u06FF]", texte):
+        return "ar"
+
+    if re.search(r"\b(analyze|analyse the|explain|summarize)\b", texte):
+        return "en"
+
+    if re.search(r"\b(analiza|analizar|página|explica|resume)\b", texte):
+        return "es"
+
+    return "fr"
+
+
 
 
 @app.post("/chat/ask")
@@ -259,7 +274,7 @@ def ask(q: Question):
                 pages,
                 etat.llm,
                 db.obtenir_positions,
-                langue="fr",
+                langue=detecter_langue_question(q.question),
                 page_debut=numero_page,
                 page_fin=numero_page
             )
