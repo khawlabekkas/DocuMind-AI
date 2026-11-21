@@ -11,8 +11,6 @@ Format de sortie (POST /analysis/run) :
    "sections": [{"titre", "pages"}], "result": "texte", "citations": [...]}
 """
 
-from time import time
-
 import time
 
 from rag_agent import generer_citations
@@ -107,7 +105,7 @@ def resumer_document(document_id: str, pages: list[dict], llm, obtenir_positions
 
 
 
-def _map_reduce(passages, llm, consigne):
+def _map_reduce(passages, llm, consigne, systeme=SYSTEME):
     """
     Résumé hiérarchique :
     MAP : résumer les lots de passages.
@@ -131,7 +129,7 @@ def _map_reduce(passages, llm, consigne):
             "Conserve uniquement les idées essentielles et les citations. "
             "N'ajoute aucune introduction inutile.\n\n"
             f"EXTRAITS :\n{bloc}",
-            SYSTEME
+            systeme
         )
 
         partiels.append(resume)
@@ -166,7 +164,7 @@ def _map_reduce(passages, llm, consigne):
                 "Fusionne ces résumés en un résumé final cohérent. "
                 "Conserve les citations [n].\n\n"
                 + "\n\n---\n\n".join(partiels),
-                SYSTEME
+                systeme
             )
 
         partiels_suivants = []
@@ -180,7 +178,7 @@ def _map_reduce(passages, llm, consigne):
                     "Conserve les informations importantes "
                     "et les citations [n].\n\n"
                     + "\n\n---\n\n".join(groupe),
-                    SYSTEME
+                    systeme
                 )
                 partiels_suivants.append(fusion)
 
@@ -227,8 +225,27 @@ def expliquer_section(document_id: str, section: str, rechercher, llm,
 
 
 # ------------------------------------------------------- Analyse complète
-def analyser_document_complet(document_id: str, pages: list[dict], llm,
-                              obtenir_positions) -> dict:
+def analyser_document_complet(
+    document_id: str,
+    pages: list[dict],
+    llm,
+    obtenir_positions,
+    langue: str = "fr"
+) -> dict:
+    langues = {
+        "fr": "français",
+        "en": "anglais",
+        "es": "espagnol",
+        "ar": "arabe",
+    }
+
+    langue = langue if langue in langues else "fr"
+
+    systeme_analyse = (
+        "Tu es DocuMind. Travaille uniquement à partir des extraits fournis. "
+        "Conserve les citations [n] et n'invente aucune information. "
+        f"Rédige toute l'analyse en {langues[langue]}."
+    )
     passages = _pages_comme_passages(pages, document_id)
     scope = {"document_id": document_id, "page_debut": 1, "page_fin": len(pages)}
     if not passages:
@@ -237,7 +254,16 @@ def analyser_document_complet(document_id: str, pages: list[dict], llm,
     consigne = ("Analyse ce document : 1) sujet et objectif 2) structure (parties et pages) "
                 "3) idées clés 4) conclusion")
     if sum(len(p["texte"]) for p in passages) <= MAX_CARACTERES:
-        texte = llm(f"{consigne}. Cite tes sources.\n\nEXTRAITS :\n" + _numeroter(passages), SYSTEME)
+        texte = llm(
+            f"{consigne}. Cite tes sources.\n\nEXTRAITS :\n"
+            + _numeroter(passages),
+            systeme_analyse
+        )
     else:
-        texte = _map_reduce(passages, llm, consigne)
+        texte = _map_reduce(
+            passages,
+            llm,
+            consigne,
+            systeme=systeme_analyse
+        )
     return _resultat("full", scope, passages, texte, obtenir_positions)

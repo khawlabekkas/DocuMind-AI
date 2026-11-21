@@ -376,7 +376,15 @@ const demandeTelechargement =
 
   return null;
 };
+const detecterAnalyseComplete = (texte) => {
+  const q = texte.toLowerCase().trim();
 
+  const analyse = /\b(analy[sz]e|analysis|analyse[rz]?|analiza[r]?|análisis)\b|حلل|تحليل/u.test(q);
+
+  const document = /\b(document|pdf|file|fichier|documento)\b|المستند|الوثيقة|الملف/u.test(q);
+
+  return analyse && document;
+};
   
 const envoyer = async (e) => {
   e.preventDefault();
@@ -387,6 +395,38 @@ const envoyer = async (e) => {
   
 const intention = detecterTraduction(q);
 setQuestion("");
+if (!intention && detecterAnalyseComplete(q)) {
+  const document_id =
+    documentOuvert ||
+    (selection.length === 1 ? selection[0] : null);
+
+  if (!document_id) {
+    ajouter({
+      role: "erreur",
+      texte: "Ouvrez ou sélectionnez un PDF à analyser."
+    });
+    return;
+  }
+
+  const langue =
+    /\b(spanish|espagnol|español)\b/i.test(q) ? "es" :
+    /\b(english|anglais)\b/i.test(q) ? "en" :
+    /\b(arabic|arabe)\b/i.test(q) ? "ar" :
+    /\b(french|français|francais)\b/i.test(q) ? "fr" :
+    /[\u0600-\u06FF]/.test(q) ? "ar" :
+    /\b(analiza|análisis|documento)\b/i.test(q) ? "es" :
+    detecterLangueDemande(q);
+
+  await executer(q, () =>
+    lancerAnalyse({
+      document_id,
+      type: "full",
+      langue
+    })
+  );
+
+  return;
+}
 
 
 console.log("DOCUMENTS SÉLECTIONNÉS :", selection);

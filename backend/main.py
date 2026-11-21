@@ -240,7 +240,8 @@ class DemandeAnalyse(BaseModel):
     type: str                      # "summarize" | "explain" | "full"
     page_debut: int | None = None
     page_fin: int | None = None
-    section: str | None = None     # pour "explain"
+    section: str | None = None  
+    langue: str = "fr"   # pour "explain"
 
 
 @app.post("/analysis/run")
@@ -258,7 +259,13 @@ def analyse(d: DemandeAnalyse):
             res = expliquer_section(d.document_id, d.section, etat.moteur.rechercher,
                                     etat.llm, db.obtenir_positions)
         elif d.type == "full":
-            res = analyser_document_complet(d.document_id, pages, etat.llm, db.obtenir_positions)
+           res = analyser_document_complet(
+        d.document_id,
+        pages,
+        etat.llm,
+        db.obtenir_positions,
+        langue=d.langue
+    )
         else:
             raise HTTPException(400, "type doit être summarize, explain ou full.")
     except HTTPException:
