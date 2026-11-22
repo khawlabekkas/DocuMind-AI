@@ -1,5 +1,5 @@
 """
-main.py — API FastAPI (routes du Binôme 1)
+main.py â€” API FastAPI (routes du BinÃ´me 1)
 
 Lancer :  uvicorn main:app --reload
 Doc interactive : http://localhost:8000/docs
@@ -47,12 +47,12 @@ DOSSIER_UPLOADS = os.getenv("UPLOAD_DIR", "data/uploads")
 
 
 class Etat:
-    """Objets partagés. Les tests remplacent moteur et llm par des faux."""
+    """Objets partagÃ©s. Les tests remplacent moteur et llm par des faux."""
 
     moteur = MoteurRecherche()
     llm = staticmethod(appeler_gemini)
 
-    # Binôme 2 — Verification Agent
+    # BinÃ´me 2 â€” Verification Agent
     guard = staticmethod(guard_rag)
     fact_check = staticmethod(fact_check_rag)
 
@@ -111,7 +111,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"],
 
 # ================================================================ Documents
 def _indexer(doc_id: str, chunks: list[dict]):
-    """Tâche de fond : embeddings BGE-M3 (lent) puis statut 'ready'."""
+    """TÃ¢che de fond : embeddings BGE-M3 (lent) puis statut 'ready'."""
     try:
         etat.moteur.ajouter_document(chunks)
         db.changer_statut(doc_id, "ready")
@@ -123,7 +123,7 @@ def _indexer(doc_id: str, chunks: list[dict]):
 @app.post("/documents/upload")
 async def upload(taches: BackgroundTasks, fichier: UploadFile = File(...)):
     if not fichier.filename.lower().endswith(".pdf"):
-        raise HTTPException(400, "Seuls les fichiers PDF sont acceptés.")
+        raise HTTPException(400, "Seuls les fichiers PDF sont acceptÃ©s.")
 
     doc_id = uuid.uuid4().hex[:12]
     chemin = os.path.join(DOSSIER_UPLOADS, f"{doc_id}.pdf")
@@ -142,10 +142,10 @@ async def upload(taches: BackgroundTasks, fichier: UploadFile = File(...)):
     chunks = decouper_chunks(pages, doc_id)
     if not chunks:
         os.remove(chemin)
-        raise HTTPException(400, "Aucun texte trouvé (PDF scanné ? l'OCR est hors périmètre).")
+        raise HTTPException(400, "Aucun texte trouvÃ© (PDF scannÃ© ? l'OCR est hors pÃ©rimÃ¨tre).")
 
     db.ajouter_document(doc_id, fichier.filename, chemin, pages, positions, chunks)
-    taches.add_task(_indexer, doc_id, chunks)   # la réponse part tout de suite
+    taches.add_task(_indexer, doc_id, chunks)   # la rÃ©ponse part tout de suite
     return {"document_id": doc_id, "nom": fichier.filename,
             "pages": len(pages), "index_status": "indexing"}
 
@@ -188,12 +188,20 @@ class Question(BaseModel):
     conversation_id: str | None = None
 
 
+
 def detecter_page_analyse(question: str) -> int | None:
     texte = question.strip().lower()
 
     motifs = [
-        r"\b(?:analyse|analyser|analyze|analiza)\s+(?:uniquement\s+)?(?:la\s+|the\s+)?(?:page|página)\s+(\d+)\b",
-        r"(?:حلل|حلّل|تحليل)\s+(?:الصفحة|صفحة)\s+(\d+)"
+        # FranÃ§ais, anglais et espagnol
+        r"\b(?:analyse|analyser|analyze|analiza|analizar)\s+"
+        r"(?:(?:uniquement|only|solo)\s+)?"
+        r"(?:(?:la|the)\s+)?"
+        r"(?:page|pÃ¡gina|pagina)\s+(\d+)\b",
+
+        # Arabe : Ø­Ù„Ù„ Ø§Ù„ØµÙØ­Ø© 2 / Ø­Ù„Ù‘Ù„ ØµÙØ­Ø© Ù¢
+        r"(?:Ø­Ù„Ù„|Ø­Ù„Ù‘Ù„|ØªØ­Ù„ÙŠÙ„)\s+"
+        r"(?:Ø§Ù„ØµÙØ­Ø©|ØµÙØ­Ø©)\s+([0-9Ù -Ù©Û°-Û¹]+)",
     ]
 
     for motif in motifs:
@@ -204,19 +212,101 @@ def detecter_page_analyse(question: str) -> int | None:
 
     return None
 
+
+def detecter_resume_complet(question: str) -> bool:
+    import re
+    import unicodedata
+
+    texte = unicodedata.normalize("NFKC", question.strip().lower())
+
+    # Supprimer les voyelles/diacritiques arabes
+    texte = re.sub(r"[\u064B-\u065F\u0670]", "", texte)
+
+    # Intentions de résumé dans les quatre langues
+    motifs_resume = [
+        r"\b(?:résume|résumer|resume|summarize|summarise)\b",
+        r"\b(?:resumen|resumir)\b",
+        r"(?:لخص|تلخيص|ملخص)"
+    ]
+
+    # Expressions indiquant le document entier
+    motifs_document = [
+        r"\b(?:document|documento|pdf)\b",
+        r"\b(?:entier|entière|complet|complète|tout|entire|whole|todo|completo)\b",
+        r"(?:المستند|الوثيقة|الملف|بالكامل|كامل)"
+    ]
+
+    resume = any(re.search(m, texte) for m in motifs_resume)
+    document = any(re.search(m, texte) for m in motifs_document)
+
+    return resume and document
+for question in [
+    "Résume tout le document",
+    "Summarize the entire document",
+    "Resume todo el documento",
+    "لخص المستند بالكامل",
+    "لخّص المستند بالكامل"
+]:
+    print(
+        repr(question),
+        "->",
+        detecter_resume_complet(question),
+        flush=True
+    )
+
+
+
 def detecter_langue_question(question: str) -> str:
     texte = question.strip().lower()
 
+    # PrioritÃ© 1 : langue explicitement demandÃ©e
+    langues_explicites = [
+        (
+            "ar",
+            r"\b(?:arabic|arabe|Ã¡rabe|Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©|Ø¹Ø±Ø¨ÙŠ|Ø¨Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©)\b"
+        ),
+        (
+            "es",
+            r"\b(?:spanish|espagnol|espaÃ±ol|espagnole)\b"
+        ),
+        (
+            "en",
+            r"\b(?:english|anglais|inglÃ©s|anglaise)\b"
+        ),
+        (
+            "fr",
+            r"\b(?:french|franÃ§ais|francais|francÃ©s|franÃ§aise)\b"
+        ),
+    ]
+
+    for langue, motif in langues_explicites:
+        if re.search(motif, texte):
+            return langue
+
+    # PrioritÃ© 2 : langue utilisÃ©e dans la question
     if re.search(r"[\u0600-\u06FF]", texte):
         return "ar"
 
-    if re.search(r"\b(analyze|analyse the|explain|summarize)\b", texte):
+    if re.search(
+        r"\b(?:analyze|analyse the|explain|summarize)\b",
+        texte
+    ):
         return "en"
 
-    if re.search(r"\b(analiza|analizar|página|explica|resume)\b", texte):
+    if re.search(
+        r"\b(?:analiza|analizar|pÃ¡gina|pagina|explica|resume)\b",
+        texte
+    ):
         return "es"
 
     return "fr"
+print(
+    "TEST ESPAGNOL:",
+    "page =", detecter_page_analyse("Analiza la pÃ¡gina 2"),
+    "langue =", detecter_langue_question("Analiza la pÃ¡gina 2"),
+    flush=True
+)
+
 
 
 
@@ -224,7 +314,7 @@ def detecter_langue_question(question: str) -> str:
 @app.post("/chat/ask")
 def ask(q: Question):
     if q.document_ids is not None and len(q.document_ids) == 0:
-        raise HTTPException(400, "Sélectionnez au moins un document.")
+        raise HTTPException(400, "SÃ©lectionnez au moins un document.")
 
     # 1. Create a conversation or reuse an existing one
     if q.conversation_id:
@@ -251,34 +341,48 @@ def ask(q: Question):
     # Keep the last 6 messages for contextual memory
     historique = historique[-6:]
 
-    
     try:
         numero_page = detecter_page_analyse(q.question)
-
-        if numero_page is not None and q.document_ids and len(q.document_ids) == 1:
+        resume_complet = detecter_resume_complet(q.question)
+        langue = detecter_langue_question(q.question)
+        print(
+    "DEBUG SUMMARY:",
+    "resume_complet =", resume_complet,
+    "langue =", langue,
+    "document_ids =", q.document_ids,
+    "nombre_documents =", len(q.document_ids) if q.document_ids else 0,
+    flush=True
+)
+    
+        # Analyse d'une page prÃ©cise
+        if (
+            numero_page is not None
+            and q.document_ids
+            and len(q.document_ids) == 1
+        ):
             document_id = q.document_ids[0]
-
+    
             if not db.obtenir_document(document_id):
                 raise HTTPException(404, "Document introuvable.")
-
+    
             pages = db.obtenir_pages(document_id)
-
+    
             if numero_page < 1 or numero_page > len(pages):
                 raise HTTPException(
                     400,
                     f"La page {numero_page} n'existe pas dans ce document."
                 )
-
+    
             analyse_page = analyser_document_complet(
                 document_id,
                 pages,
                 etat.llm,
                 db.obtenir_positions,
-                langue=detecter_langue_question(q.question),
+                langue=langue,
                 page_debut=numero_page,
                 page_fin=numero_page
             )
-
+    
             res = {
                 "answer": analyse_page["result"],
                 "status": "answered",
@@ -286,8 +390,39 @@ def ask(q: Question):
                 "verdict": None,
                 "refusal_reason": None
             }
-
+    
+        # RÃ©sumÃ© de l'ensemble du document
+        elif (
+            resume_complet
+            and q.document_ids
+            and len(q.document_ids) == 1
+        ):
+            document_id = q.document_ids[0]
+    
+            if not db.obtenir_document(document_id):
+                raise HTTPException(404, "Document introuvable.")
+    
+            pages = db.obtenir_pages(document_id)
+    
+            resume = resumer_document(
+                document_id,
+                pages,
+                etat.llm,
+                db.obtenir_positions,
+                langue=langue
+            )
+    
+            res = {
+                "answer": resume["result"],
+                "status": "answered",
+                "citations": resume.get("citations", []),
+                "verdict": None,
+                "refusal_reason": None
+            }
+    
+        # Toutes les autres questions : RAG existant
         else:
+            print("DEBUG ROUTE: AGENT_RAG", flush=True)
             res = agent_rag(
                 q.question,
                 etat.moteur.rechercher,
@@ -298,11 +433,74 @@ def ask(q: Question):
                 fact_check=etat.fact_check,
                 historique=historique
             )
+    
+    
+            if numero_page is not None and q.document_ids and len(q.document_ids) == 1:
+                document_id = q.document_ids[0]
+    
+                if not db.obtenir_document(document_id):
+                    raise HTTPException(404, "Document introuvable.")
+    
+                pages = db.obtenir_pages(document_id)
+    
+                if numero_page < 1 or numero_page > len(pages):
+                    raise HTTPException(
+                        400,
+                        f"La page {numero_page} n'existe pas dans ce document."
+                    )
+                page_analyse = detecter_page_analyse(q.question)
+                langue = detecter_langue_question(q.question)
+                print(
+                    "DEBUG ANALYSE PAGE:",
+                    "page =", numero_page,
+                    "langue =", langue,
+                    flush=True
+                )
+                print(
+                    "DEBUG ROUTING:",
+                    "question =", repr(q.question),
+                    "page =", numero_page,
+                    "resume =", resume_complet,
+                    "langue =", langue,
+                    "documents =", q.document_ids,
+                    flush=True
+                )
 
+    
+                analyse_page = analyser_document_complet(
+                    document_id,
+                    pages,
+                    etat.llm,
+                    db.obtenir_positions,
+                    langue=langue,
+                    page_debut=numero_page,
+                    page_fin=numero_page
+                )
+    
+                res = {
+                    "answer": analyse_page["result"],
+                    "status": "answered",
+                    "citations": analyse_page.get("citations", []),
+                    "verdict": None,
+                    "refusal_reason": None
+                }
+    
+            else:
+                res = agent_rag(
+                    q.question,
+                    etat.moteur.rechercher,
+                    etat.llm,
+                    db.obtenir_positions,
+                    document_ids=q.document_ids,
+                    guard=etat.guard,
+                    fact_check=etat.fact_check,
+                    historique=historique
+                )
+    
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(502, f"Erreur du modèle : {e}")
+        raise HTTPException(502, f"Erreur du modÃ¨le : {e}")
 
     # 3. Save the user question and assistant response
     try:
@@ -361,11 +559,12 @@ def analyse(d: DemandeAnalyse):
     pages = db.obtenir_pages(d.document_id)
     try:
         if d.type == "summarize":
+            print("DEBUG ROUTE: RESUMER_DOCUMENT", flush=True)
             res = resumer_document(d.document_id, pages, etat.llm, db.obtenir_positions,
                                    d.page_debut, d.page_fin,langue=d.langue)
         elif d.type == "explain":
             if not d.section:
-                raise HTTPException(400, "Précisez la section ou le concept à expliquer.")
+                raise HTTPException(400, "PrÃ©cisez la section ou le concept Ã  expliquer.")
             res = expliquer_section(d.document_id, d.section, etat.moteur.rechercher,
                                     etat.llm, db.obtenir_positions)
         elif d.type == "full":
@@ -379,11 +578,11 @@ def analyse(d: DemandeAnalyse):
                 page_fin=d.page_fin
             )
         else:
-            raise HTTPException(400, "type doit être summarize, explain ou full.")
+            raise HTTPException(400, "type doit Ãªtre summarize, explain ou full.")
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(502, f"Erreur du modèle : {e}")
+        raise HTTPException(502, f"Erreur du modÃ¨le : {e}")
     db.enregistrer_interaction(d.type, d.section or "", "answered")
     return res
 
@@ -397,20 +596,20 @@ class DemandeTraduction(BaseModel):
 @app.post("/translation/run")
 def traduction(d: DemandeTraduction):
 
-    # Vérifier la langue
+    # VÃ©rifier la langue
     if d.langue_cible not in LANGUES:
         raise HTTPException(
             400,
-            "Langue non supportée. Utilisez fr, en, ar ou es."
+            "Langue non supportÃ©e. Utilisez fr, en, ar ou es."
         )
 
-    # Récupérer le document enregistré
+    # RÃ©cupÃ©rer le document enregistrÃ©
     document = db.obtenir_document(d.document_id)
 
     if not document:
         raise HTTPException(404, "Document introuvable.")
 
-    # Vérifier que le fichier existe encore
+    # VÃ©rifier que le fichier existe encore
     chemin = document["chemin"]
 
     if not os.path.isfile(chemin):
@@ -429,7 +628,7 @@ def traduction(d: DemandeTraduction):
             f"Erreur de traduction : {e}"
         )
 
-    # Retourner les résultats au frontend
+    # Retourner les rÃ©sultats au frontend
     return {
         "document_id": d.document_id,
         "nom": document["nom"],
@@ -449,13 +648,13 @@ def traduction_texte(d: DemandeTraductionTexte):
     if d.langue_cible not in LANGUES:
         raise HTTPException(
             status_code=400,
-            detail="Langue non supportée. Utilisez fr, en, ar ou es."
+            detail="Langue non supportÃ©e. Utilisez fr, en, ar ou es."
         )
 
     if not d.texte.strip():
         raise HTTPException(
             status_code=400,
-            detail="Le texte à traduire est vide."
+            detail="Le texte Ã  traduire est vide."
         )
 
     try:
@@ -486,7 +685,7 @@ def exporter_txt(d: DemandeTraduction):
     if d.langue_cible not in LANGUES:
         raise HTTPException(
             400,
-            "Langue non supportée. Utilisez fr, en, ar ou es."
+            "Langue non supportÃ©e. Utilisez fr, en, ar ou es."
         )
 
     document = db.obtenir_document(d.document_id)
@@ -532,7 +731,7 @@ def exporter_pdf(d: DemandeTraduction):
     if d.langue_cible not in LANGUES:
         raise HTTPException(
             400,
-            "Langue non supportée. Utilisez fr, en, ar ou es."
+            "Langue non supportÃ©e. Utilisez fr, en, ar ou es."
         )
 
     document = db.obtenir_document(d.document_id)
@@ -584,7 +783,7 @@ def exporter_pdf(d: DemandeTraduction):
     )
 
 # ==========================================
-# LANGGRAPH — MULTI-AGENT WORKFLOW
+# LANGGRAPH â€” MULTI-AGENT WORKFLOW
 # ==========================================
 
 class DemandeWorkflow(BaseModel):
@@ -652,7 +851,7 @@ def lancer_workflow(d: DemandeWorkflow):
             }
         else:
             # Store a readable summary of analysis/translation results
-            contenu = f"Workflow {agent} terminé."
+            contenu = f"Workflow {agent} terminÃ©."
             metadata = {
                 "agent": agent,
                 "resultat": reponse_workflow
@@ -769,7 +968,7 @@ class SauvegardeEchange(BaseModel):
 @app.post("/conversations/save-exchange")
 def sauvegarder_echange(d: SauvegardeEchange):
     if not d.question.strip() or not d.reponse.strip():
-        raise HTTPException(400, "Question et réponse obligatoires.")
+        raise HTTPException(400, "Question et rÃ©ponse obligatoires.")
 
     conversation_id = d.conversation_id
 
@@ -816,6 +1015,31 @@ def obtenir_statistiques_dashboard():
     stats["documents_recents"] = db.documents_recents(5)
 
     return stats
+tests = [
+    "Analyse la page 2",
+    "Analyze page 3",
+    "Ø­Ù„Ù„ Ø§Ù„ØµÙØ­Ø© 2",
+    "Ø­Ù„Ù‘Ù„ Ø§Ù„ØµÙØ­Ø© Ù¢",
+    "Analyze page 3 en arabic",
+    "Analiza la pÃ¡gina 4",
+    "Analyse la page 2 en anglais",
+]
+
+for question in tests:
+    print(
+        question,
+        "-> page:",
+        detecter_page_analyse(question),
+        "| langue:",
+        detecter_langue_question(question)
+    )
+    print(
+        "DEBUG LANGUE:",
+        repr(question),
+        "->",
+        detecter_langue_question(question),
+        flush=True
+    )
 
 
 

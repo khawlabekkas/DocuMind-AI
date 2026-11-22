@@ -230,33 +230,58 @@ function Message({ m, onCitation, nomDocument, onOuvrirDocument }) {
   );
 }
 
-// Langue de la demande ("fr" ou "en") quand aucune langue cible n'est
-// précisée. Une langue explicite ("en anglais", "in French") reste
-// prioritaire : elle est gérée par detecterTraduction().
+// Langue de la demande quand aucune langue cible explicite n'est fournie.
 const detecterLangueDemande = (texte) => {
+  const q = texte.toLowerCase().normalize("NFKC");
+  const cible = q.match(/\b(?:in|en)\s+(french|français|francais|francés|frances|english|anglais|inglés|ingles|spanish|español|espanol|espagnol|arabic|arabe|árabe)\b/i);
+  if (cible) {
+    const cibleNormalisee = cible[1].normalize("NFD").replace(/\p{Diacritic}/gu, "");
+    if (["french", "francais", "frances"].includes(cibleNormalisee)) return "fr";
+    if (["english", "anglais", "ingles"].includes(cibleNormalisee)) return "en";
+    if (["spanish", "espanol", "espagnol"].includes(cibleNormalisee)) return "es";
+    if (["arabic", "arabe"].includes(cibleNormalisee)) return "ar";
+  }
+
+  const cibleArabe = q.match(/(?:باللغة\s*|بال)(العربية|الإنجليزية|الانجليزية|الإسبانية|الاسبانية|الفرنسية|فرنسية)/);
+  if (cibleArabe) {
+    if (cibleArabe[1] === "العربية") return "ar";
+    if (["الإنجليزية", "الانجليزية"].includes(cibleArabe[1])) return "en";
+    if (["الإسبانية", "الاسبانية"].includes(cibleArabe[1])) return "es";
+    return "fr";
+  }
+
+  if (/[\u0600-\u06FF]/.test(q)) return "ar";
+
+  const qNormalisee = q.normalize("NFD").replace(/\p{Diacritic}/gu, "");
   const motsAnglais = new Set([
-    "make", "summary", "summery", "summarize", "summarise", "explain",
-    "give", "show", "tell", "please", "the", "this", "that", "these",
+    "make", "summary", "summery", "summarize", "summarise", "explain", "analyze",
+    "give", "show", "tell", "please", "the", "this", "that", "these", "entire",
     "those", "of", "into", "what", "how", "can", "could", "you", "about"
   ]);
   const motsFrancais = new Set([
-    "résume", "résumer", "résumé", "fais", "fait", "donne", "explique",
+    "resume", "resumer", "analyse", "fais", "fait", "donne", "explique",
     "expliquer", "traduis", "ce", "cet", "cette", "ces", "le", "la", "les",
-    "des", "du", "de", "un", "une", "moi", "sur", "pour", "avec", "et",
-    "mon", "ma", "mes", "peux", "pouvez", "je", "veux"
+    "des", "du", "de", "un", "une", "moi", "sur", "pour", "avec", "et", "tout",
+    "document", "mon", "ma", "mes", "peux", "pouvez", "je", "veux"
   ]);
-
-  const q = texte.toLowerCase();
+  const motsEspagnols = new Set([
+    "resume", "resumen", "resumir", "todo", "toda", "el", "documento", "completo",
+    "analiza", "analizar", "explica", "pagina", "las", "los", "sus", "esto", "eso",
+    "que", "como", "y", "del", "para"
+  ]);
   let anglais = 0;
   let francais = /[éèêëàâùûçôîï]/.test(q) ? 2 : 0;
+  let espagnol = 0;
 
-  for (const mot of q.match(/[\p{L}']+/gu) || []) {
+  for (const mot of qNormalisee.match(/[\p{L}']+/gu) || []) {
     if (motsAnglais.has(mot)) anglais++;
     if (motsFrancais.has(mot)) francais++;
+    if (motsEspagnols.has(mot)) espagnol++;
   }
 
-  // En cas d'égalité ou d'absence d'indice : français (comportement actuel).
-  return anglais > francais ? "en" : "fr";
+  if (espagnol > anglais && espagnol > francais) return "es";
+  if (anglais > francais) return "en";
+  return "fr";
 };
 
 // Traduit un texte en conservant les marqueurs de citation [1], [2][3]...
@@ -564,14 +589,7 @@ if (!intention && detecterAnalyseComplete(q)) {
     return;
   }
 
-  const langue =
-    /\b(spanish|espagnol|español)\b/i.test(q) ? "es" :
-    /\b(english|anglais)\b/i.test(q) ? "en" :
-    /\b(arabic|arabe)\b/i.test(q) ? "ar" :
-    /\b(french|français|francais)\b/i.test(q) ? "fr" :
-    /[\u0600-\u06FF]/.test(q) ? "ar" :
-    /\b(analiza|análisis|documento)\b/i.test(q) ? "es" :
-    detecterLangueDemande(q);
+  const langue = detecterLangueDemande(q);
 
   await executer(q, () =>
     lancerAnalyse({
@@ -843,19 +861,17 @@ if (intention?.type === "explication") {
   setAttente(true);
 
   try {
+    const langueReponse = intention.langue || detecterLangueDemande(q);
     const resultat = await lancerAnalyse(
       expliquerDocument
-        ? { document_id, type: "full" }
+        ? { document_id, type: "full", langue: langueReponse }
         : { document_id, type: "explain", section: sujet }
     );
 
     let texteExplication = resultat.result;
 
-    // Langue explicite d'abord ; sinon langue de la demande (fr/en).
-    const langueReponse = intention.langue || detecterLangueDemande(q);
-
     // L'explication du backend est en français : on ne traduit que si besoin.
-    if (intention.langue || langueReponse !== "fr") {
+    if (!expliquerDocument && (intention.langue || langueReponse !== "fr")) {
       texteExplication = await traduireEnGardantCitations(
         texteExplication,
         langueReponse
@@ -924,7 +940,12 @@ if (intention && intention.type !== "pdf") {
       if (!section) return;
     }
     const libelles = { summarize: "Résume ce document", full: "Analyse complète", explain: `Explique : ${section}` };
-    executer(libelles[type], () => lancerAnalyse({ document_id, type, section }));
+    executer(libelles[type], () => lancerAnalyse({
+      document_id,
+      type,
+      section,
+      ...(type === "full" && { langue: detecterLangueDemande(libelles[type]) })
+    }));
   };
 
   const unSeul = selection.length === 1;

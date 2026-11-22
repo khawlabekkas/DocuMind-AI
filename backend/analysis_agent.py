@@ -104,6 +104,7 @@ def resumer_document(
     }
 
     langue = langue if langue in langues else "fr"
+    langues_llm = {"fr": "French", "en": "English", "es": "Spanish", "ar": "Arabic"}
 
     systeme_resume = (
          "Tu es DocuMind, un expert en analyse documentaire et en pédagogie. "
@@ -111,6 +112,7 @@ def resumer_document(
     "N'invente aucune information. "
     "Conserve les citations [n] après les informations correspondantes. "
 
+    f"Réponds exclusivement en {langues[langue]} du début à la fin. "
     f"Rédige intégralement le résumé en {langues[langue]}, "
     "y compris les titres et sous-titres. "
 
@@ -167,6 +169,7 @@ def resumer_document(
 
     if sum(len(p["texte"]) for p in passages) <= MAX_CARACTERES:
         texte = llm(
+            f"Respond exclusively in {langues_llm[langue]}. " +
             "Résume ces extraits en 5 à 10 points clés, "
             "avec citations.\n\n" + _numeroter(passages),
             systeme_resume
@@ -176,7 +179,8 @@ def resumer_document(
             passages,
             llm,
             "Résume en points clés",
-            systeme=systeme_resume
+            systeme=systeme_resume,
+            langue=langues_llm[langue]
         )
 
     return _resultat(
@@ -187,83 +191,87 @@ def resumer_document(
         obtenir_positions
     )
 
-
-
-def _map_reduce(passages, llm, consigne, systeme=SYSTEME, mode="resume"):
-    """MAP-REDUCE avec instructions distinctes pour résumé et analyse."""
+def _map_reduce(passages, llm, consigne, systeme=SYSTEME, mode="resume", langue=None):
+    """
+    MAP-REDUCE avec deux modes :
+    - resume : résumé hiérarchique classique.
+    - analyse : sections pédagogiques assemblées sans appel LLM final.
+    """
     LIMITE_FUSION = 6_000
+
     if mode not in ("resume", "analyse"):
         raise ValueError("Mode MAP-REDUCE invalide.")
 
+    instruction_langue = f"Respond exclusively in {langue}. " if langue else ""
     partiels = []
     decalage = 0
+
+    # --------------------------------------------------
+    # ETAPE 1 : MAP
+    # --------------------------------------------------
 
     for lot in _lots(passages):
         bloc = "\n\n".join(
             f"[{decalage + i}] (page {p['page']})\n{p['texte']}"
             for i, p in enumerate(lot, start=1)
         )
+
         if mode == "analyse":
             instruction_map = (
-                "Identifie les concepts essentiels, leur fonctionnement, "
-                "leurs relations, leurs implications et leurs limites. "
-                "Explique brièvement pourquoi chaque concept est important. "
-                "Conserve les exemples pertinents présents dans les extraits. "
-                "Produis des notes analytiques concises de 150 à 200 mots maximum. "
+                "Rédige une section complète d'analyse experte et pédagogique "
+                "à partir des extraits fournis. "
+                "Commence par un sous-titre Markdown ### décrivant le sujet traité. "
+                "Explique les concepts importants, leur fonctionnement, "
+                "leur utilité et leurs relations. "
+                "Développe les exemples présents dans les extraits. "
+                "Mentionne les limites et implications justifiées par les sources. "
+                "Ne fais pas une simple liste de définitions. "
+                "Rédige environ 150 à 220 mots, avec des phrases complètes. "
+                "Termine proprement sans laisser de phrase incomplète. "
                 "Conserve les citations exactement au format [n]. "
                 "N'invente aucune information. "
             )
+            # Eviter de demander une longue analyse globale
+            # dans chaque lot.
+            instruction = instruction_map
+
         else:
             instruction_map = (
                 "Produis un résumé très concis de 150 à 200 mots maximum. "
                 "Conserve uniquement les idées essentielles et les citations. "
                 "N'ajoute aucune introduction inutile. "
             )
+            instruction = f"{consigne}. " + instruction_map
 
-        resume = llm(
-            f"{consigne}. Cite tes sources avec les numéros [n]. "
-            + instruction_map + f"\n\nEXTRAITS :\n{bloc}",
+        resultat = llm(
+            instruction
+            + instruction_langue
+            + " Cite tes sources avec les numéros [n].\n\n"
+            + f"EXTRAITS :\n{bloc}",
             systeme,
         )
-        partiels.append(resume)
+
+        partiels.append(resultat)
         decalage += len(lot)
 
+    if not partiels:
+        return ""
+
+    # --------------------------------------------------
+    # ETAPE 2 : ANALYSE
+    # Assemblage direct des sections en Python
+    # --------------------------------------------------
+
     if mode == "analyse":
-        consigne_finale = (
-            "Réalise une analyse experte et pédagogique du document "
-            "à partir des notes analytiques fournies. "
-            "Identifie le sujet et l'objectif du document. "
-            "Explique les concepts importants, leur fonctionnement et leur utilité. "
-            "Relie les idées de différentes sections lorsque les sources le permettent. "
-            "Explique les implications, limites et points de vigilance documentés. "
-            "Ne produis pas un simple résumé des notes. "
-            "Structure avec un titre ##, des sous-titres ### et des paragraphes clairs. "
-            "Commence directement par le titre, sans salutation. "
-            "Distingue les analogies pédagogiques des faits du document. "
-            "Conserve les citations exactement au format [n]. "
-            "N'invente aucune information. "
-            "Respecte la langue demandée dans les instructions système. "
-            "Retourne uniquement l'analyse structurée.\n\n"
-        )
-    else:
-        consigne_finale = (
-            "Fusionne ces résumés en une synthèse finale cohérente. "
-            "Conserve les citations [n] après les informations correspondantes. "
-            "N'invente aucune information. "
-            "Présente le résultat en Markdown avec : "
-            "un titre principal commençant par ##, "
-            "des sous-titres pertinents commençant par ###, "
-            "des paragraphes courts et quelques listes à puces. "
-            "Adapte les titres au sujet du document. "
-            "Évite les répétitions et les longs blocs de texte. "
-            "Respecte la langue demandée dans les instructions système. "
-            "Retourne uniquement la synthèse structurée.\n\n"
+        return (
+            "## Analyse experte du document\n\n"
+            + "\n\n".join(partiels)
         )
 
-    # Cas d'un seul lot : l'analyse a aussi besoin d'une passe finale.
-    # Pour le résumé, on conserve le comportement historique.
-    if len(partiels) == 1 and mode == "analyse":
-        return llm(consigne_finale + partiels[0], systeme)
+    # --------------------------------------------------
+    # ETAPE 3 : REDUCE
+    # Conserver le fonctionnement des résumés
+    # --------------------------------------------------
 
     while len(partiels) > 1:
         nouveaux = []
@@ -275,36 +283,46 @@ def _map_reduce(passages, llm, consigne, systeme=SYSTEME, mode="resume"):
                 nouveaux.append(groupe)
                 groupe = []
                 taille = 0
+
             groupe.append(resume)
             taille += len(resume)
 
         if groupe:
             nouveaux.append(groupe)
 
+        # Fusion finale des résumés
         if len(nouveaux) == 1:
+            consigne_finale = (
+                "Fusionne ces résumés en une synthèse finale cohérente. "
+                "Conserve les citations [n] après les informations correspondantes. "
+                "N'invente aucune information. "
+                "Présente le résultat en Markdown avec : "
+                "un titre principal commençant par ##, "
+                "des sous-titres pertinents commençant par ###, "
+                "des paragraphes courts et quelques listes à puces. "
+                "Adapte les titres au sujet du document. "
+                "Evite les répétitions et les longs blocs de texte. "
+                "Respecte la langue demandée dans les instructions système. "
+                "Retourne uniquement la synthèse structurée.\n\n"
+            )
+
             return llm(
-                consigne_finale + "\n\n---\n\n".join(partiels),
+                instruction_langue + consigne_finale + "\n\n---\n\n".join(partiels),
                 systeme,
             )
 
         partiels_suivants = []
+
         for groupe in nouveaux:
             if len(groupe) == 1:
                 partiels_suivants.append(groupe[0])
             else:
-                if mode == "analyse":
-                    instruction_fusion = (
-                        "Fusionne ces notes analytiques en conservant les concepts, "
-                        "leurs relations, leurs implications et les citations [n]. "
-                        "Reste concis, évite les répétitions et n'invente rien.\n\n"
-                    )
-                else:
-                    instruction_fusion = (
-                        "Fusionne ces résumés partiels. "
-                        "Conserve les informations importantes et les citations [n].\n\n"
-                    )
                 fusion = llm(
-                    instruction_fusion + "\n\n---\n\n".join(groupe),
+                    instruction_langue +
+                    "Fusionne ces résumés partiels. "
+                    "Conserve les informations importantes "
+                    "et les citations [n].\n\n"
+                    + "\n\n---\n\n".join(groupe),
                     systeme,
                 )
                 partiels_suivants.append(fusion)
@@ -316,14 +334,20 @@ def _map_reduce(passages, llm, consigne, systeme=SYSTEME, mode="resume"):
             "tailles =", [len(r) for r in partiels],
             flush=True,
         )
+
         if len(partiels_suivants) >= len(partiels):
             raise RuntimeError(
                 "Impossible de réduire les résumés : "
                 "un résumé individuel dépasse la limite."
             )
+
         partiels = partiels_suivants
 
-    return partiels[0] if partiels else ""
+    return partiels[0]
+
+
+
+
 
 
 # ----------------------------------------------------------- Explication
@@ -367,12 +391,35 @@ def analyser_document_complet(
     }
 
     langue = langue if langue in langues else "fr"
-
     systeme_analyse = (
-        "Tu es DocuMind. Travaille uniquement à partir des extraits fournis. "
-        "Conserve les citations [n] et n'invente aucune information. "
-        f"Rédige toute l'analyse en {langues[langue]}."
-    )
+         "Tu es DocuMind, un expert en analyse documentaire. "
+    "Travaille uniquement à partir des extraits fournis. "
+    "Conserve les citations exactement au format [n]. "
+    "N'invente aucune information. "
+    f"Rédige toute l'analyse exclusivement en {langues[langue]}, "
+    "y compris les titres, sous-titres et explications. "
+    "Ne change jamais de langue pendant la réponse. ")
+    if langue == "ar":
+        systeme_analyse = (
+            systeme_analyse +
+            "\nاكتب التحليل كاملاً باللغة العربية الفصحى. "
+            "يجب أن تكون جميع العناوين والشروحات باللغة العربية. "
+            "لا تستخدم اللغة الفرنسية في الإجابة."
+        )
+    
+    elif langue == "es":
+        systeme_analyse += (
+            "\nResponde exclusivamente en español. "
+            "Escribe todos los títulos, subtítulos, explicaciones "
+            "y conclusiones en español. "
+            "No respondas en francés."
+        )
+
+    print(
+    "DEBUG SYSTEME ANALYSE:",
+    repr(systeme_analyse),
+    flush=True
+)
 
     # Filtrer uniquement les pages demandées
     debut = 1 if page_debut is None else page_debut
