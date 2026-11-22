@@ -869,3 +869,12 @@
     grid-template-columns: 1fr;
   }
 }
+/* Espacement entre les blocs RAGAS */
+.documind-dashboard-section:has(> .documind-dashboard-card) > .documind-dashboard-card {
+  margin-bottom: 24px;
+}
+
+.documind-dashboard-ragas-main {
+  margin-bottom: 28px;
+}
+

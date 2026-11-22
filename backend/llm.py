@@ -57,6 +57,7 @@ def appeler_groq(
                 ),
                 messages=messages,
                 temperature=temperature,
+                 max_completion_tokens=700,
             )
 
             return (

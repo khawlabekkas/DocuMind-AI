@@ -1,4 +1,4 @@
-import {
+﻿import {
   Suspense,
   lazy,
   useCallback,
@@ -86,6 +86,7 @@ export default function Dashboard({ onRetour }) {
   const [erreur, setErreur] = useState(null);
   const [actualisation, setActualisation] = useState(false);
   const [sectionActive, setSectionActive] = useState("apercu");
+  const [detailsRagasOuverts, setDetailsRagasOuverts] = useState(false);
 
   const refApercu = useRef(null);
   const refRagas = useRef(null);
@@ -235,6 +236,47 @@ export default function Dashboard({ onRetour }) {
   // -------------------------------------------------- RAGAS (grouped bar)
   const comparaison = analytics?.comparison || [];
 
+  // Évaluation RAGAS réelle du système DocuMind AI
+  const evaluationsRagas = analytics?.ragas || [];
+
+  const scoresRagasValides = (champ) =>
+    evaluationsRagas
+      .map((ligne) => ligne[champ])
+      .filter(
+        (valeur) =>
+          valeur !== null &&
+          valeur !== undefined &&
+          String(valeur).trim() !== "" &&
+          Number.isFinite(Number(valeur))
+      )
+      .map(Number);
+
+  const moyenneRagasReelle = (champ) => {
+    const valeurs = scoresRagasValides(champ);
+
+    if (!valeurs.length) return null;
+
+    return (
+      valeurs.reduce((total, valeur) => total + valeur, 0) /
+      valeurs.length
+    );
+  };
+
+  const faithfulnessMoyenne = moyenneRagasReelle("faithfulness");
+  const relevancyMoyenne = moyenneRagasReelle("answer_relevancy");
+
+  const nombreRefus = evaluationsRagas.filter(
+    (ligne) => ligne.status === "refused"
+  ).length;
+
+  const nombreErreurs = evaluationsRagas.filter(
+    (ligne) => String(ligne.erreur || "").trim() !== ""
+  ).length;
+
+  const afficherPourcentage = (valeur) =>
+    valeur === null ? "N/A" : `${(valeur * 100).toFixed(2)}%`;
+
+
   const moyenneRagas = (method, metric) => {
     const valeurs = comparaison
       .filter((r) => r.method === method)
@@ -274,6 +316,28 @@ export default function Dashboard({ onRetour }) {
     }),
     [comparaison]
   );
+
+  const ragasQuestionsChartData = {
+    labels: evaluationsRagas.map((_, index) => `Q${index + 1}`),
+    datasets: [
+      {
+        label: "Answer Relevancy",
+        data: evaluationsRagas.map((ligne) => {
+          const valeur = ligne.answer_relevancy;
+
+          return valeur === null ||
+            valeur === undefined ||
+            String(valeur).trim() === ""
+            ? null
+            : Number(valeur);
+        }),
+        backgroundColor: COULEUR_PURPLE,
+        borderRadius: 7,
+        maxBarThickness: 35,
+      },
+    ],
+  };
+
 
   const optionsBarres = {
     responsive: true,
@@ -654,8 +718,73 @@ export default function Dashboard({ onRetour }) {
         </section>
 
         <section ref={refRagas} className="documind-dashboard-section">
+
+<div className="documind-dashboard-card">
+  <h2 className="documind-dashboard-section-title">
+    <span className="documind-dashboard-title-glyph">
+      <IconeCerveau taille={18} />
+    </span>
+    Évaluation RAGAS — DocuMind AI
+  </h2>
+
+  <p className="documind-dashboard-section-hint">
+    Évaluation réelle des réponses générées à partir d'un document PDF.
+    Les scores manquants ne sont pas comptabilisés dans les moyennes.
+  </p>
+
+  <div className="documind-dashboard-guard-summary">
+    <div className="documind-dashboard-guard-metric">
+      <strong>{afficherPourcentage(faithfulnessMoyenne)}</strong>
+      <span>
+        Faithfulness ({scoresRagasValides("faithfulness").length} valides)
+      </span>
+    </div>
+
+    <div className="documind-dashboard-guard-metric">
+      <strong>{afficherPourcentage(relevancyMoyenne)}</strong>
+      <span>
+        Answer Relevancy ({scoresRagasValides("answer_relevancy").length} valides)
+      </span>
+    </div>
+
+    <div className="documind-dashboard-guard-metric">
+      <strong>{evaluationsRagas.length}</strong>
+      <span>Questions testées</span>
+    </div>
+
+    <div className="documind-dashboard-guard-metric">
+      <strong>{nombreRefus}</strong>
+      <span>Refus</span>
+    </div>
+
+    <div className="documind-dashboard-guard-metric">
+      <strong>{nombreErreurs}</strong>
+      <span>Erreurs d'évaluation</span>
+    </div>
+  </div>
+
+  <h3 className="documind-dashboard-section-title">
+    Answer Relevancy par question
+  </h3>
+
+  <div className="documind-dashboard-chart-box">
+    {evaluationsRagas.length > 0 ? (
+      <Bar
+        data={ragasQuestionsChartData}
+        options={optionsBarres}
+      />
+    ) : (
+      <p className="documind-dashboard-empty">
+        Aucune évaluation RAGAS disponible.
+      </p>
+    )}
+  </div>
+
+
+</div>
+
           <div className="documind-dashboard-charts-grid">
-            <div className="documind-dashboard-card">
+            <div className="documind-dashboard-card documind-dashboard-ragas-main">
               <h2 className="documind-dashboard-section-title">
                 <span className="documind-dashboard-title-glyph"><IconeCerveau taille={18} /></span>
                 Évaluation RAGAS — Baseline vs Advanced
@@ -672,6 +801,7 @@ export default function Dashboard({ onRetour }) {
                   </p>
                 )}
               </div>
+              
             </div>
 
             <div className="documind-dashboard-card">
@@ -756,7 +886,7 @@ export default function Dashboard({ onRetour }) {
 
             {tests.length > 0 && tests.length < 5 && (
               <p className="documind-dashboard-guard-caveat">
-                ⚠️ Taux calculé sur seulement {tests.length} test(s) enregistré(s) —
+                ⚠�? Taux calculé sur seulement {tests.length} test(s) enregistré(s) —
                 ce n'est pas une garantie que le système ne génère jamais
                 d'hallucinations.
               </p>

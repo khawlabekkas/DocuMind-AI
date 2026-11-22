@@ -282,6 +282,35 @@ button:hover:not(:disabled) {
   font-size: 13px;
 }
 
+.analytics-section {
+  margin-top: 28px;
+  margin-bottom: 28px;
+}
+
+.analytics-details-toggle {
+  width: 100%;
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid rgba(244, 114, 182, 0.3);
+  border-radius: 14px;
+  background: rgba(168, 85, 247, 0.1);
+  color: #f8e8f7;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.analytics-details-toggle:hover {
+  background: rgba(168, 85, 247, 0.18);
+}
+
+.analytics-table-wrapper {
+  margin-top: 16px;
+  overflow-x: auto;
+}
+
 @media (max-width: 900px) {
   .analytics-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
