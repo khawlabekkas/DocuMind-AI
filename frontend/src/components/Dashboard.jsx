@@ -718,6 +718,16 @@ export default function Dashboard({ onRetour }) {
                   Rejected ({verification.rejected ?? 0})
                 </span>
               </div>
+              <div className="documind-dashboard-guard-refusal">
+                <span
+                  className="documind-dashboard-legend-dot"
+                  style={{ background: COULEUR_CORRECTED }}
+                />
+                <div>
+                  <strong>Refus du Guard ({verification.guard_refusals ?? 0})</strong>
+                  <small>Refus avant génération, séparés des verdicts du fact-checker.</small>
+                </div>
+              </div>
             </div>
           </div>
         </section>

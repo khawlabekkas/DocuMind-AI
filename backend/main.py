@@ -504,6 +504,7 @@ def ask(q: Question):
 
     # 3. Save the user question and assistant response
     try:
+        verification_origin = res.pop("_verification_origin", None)
         db.ajouter_message(
             conversation_id,
             "user",
@@ -518,7 +519,9 @@ def ask(q: Question):
                 "status": res.get("status"),
                 "citations": res.get("citations", []),
                 "verdict": res.get("verdict"),
-                "refusal_reason": res.get("refusal_reason")
+                "refusal_reason": res.get("refusal_reason"),
+                **({"verification_origin": verification_origin}
+                   if verification_origin == "hallucination_guard" else {})
             }
         )
 
@@ -837,6 +840,7 @@ def lancer_workflow(d: DemandeWorkflow):
 
         if agent == "RAG":
             details = reponse_workflow.get("reponse", {})
+            verification_origin = details.pop("_verification_origin", None)
             contenu = (
                 details.get("answer")
                 or details.get("refusal_reason")
@@ -847,7 +851,9 @@ def lancer_workflow(d: DemandeWorkflow):
                 "status": details.get("status"),
                 "citations": details.get("citations", []),
                 "verdict": details.get("verdict"),
-                "refusal_reason": details.get("refusal_reason")
+                "refusal_reason": details.get("refusal_reason"),
+                **({"verification_origin": verification_origin}
+                   if verification_origin == "hallucination_guard" else {})
             }
         else:
             # Store a readable summary of analysis/translation results
@@ -948,6 +954,9 @@ def api_ajouter_message(conversation_id: str, role: str, contenu: str, metadata:
         )
 
     try:
+        metadata = dict(metadata or {})
+        metadata.pop("verification_origin", None)
+        metadata.pop("_verification_origin", None)
         message_id = db.ajouter_message(conversation_id, role, contenu, metadata)
         return {"id": message_id}
     except ValueError as e:

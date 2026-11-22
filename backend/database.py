@@ -359,6 +359,16 @@ def statistiques_verification():
                   IN ('supported', 'corrected', 'rejected')
             GROUP BY json_extract(metadata, '$.verdict')
         """).fetchall()
+        guard_refusals = con.execute("""
+            SELECT COUNT(*)
+            FROM messages
+            WHERE role = 'assistant'
+              AND json_valid(COALESCE(metadata, '{}'))
+              AND json_extract(metadata, '$.verification_origin')
+                  = 'hallucination_guard'
+              AND json_extract(metadata, '$.status') = 'refused'
+              AND json_extract(metadata, '$.verdict') IS NULL
+        """).fetchone()[0]
 
     comptes = {
         "supported": 0,
@@ -382,6 +392,7 @@ def statistiques_verification():
         "supported": comptes["supported"],
         "corrected": comptes["corrected"],
         "rejected": comptes["rejected"],
+        "guard_refusals": guard_refusals,
         "pourcentage_supported": pourcentage
     }
 

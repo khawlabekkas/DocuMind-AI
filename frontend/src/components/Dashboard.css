@@ -597,6 +597,37 @@
   border-radius: 50%;
 }
 
+.documind-dashboard-guard-refusal {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 18px;
+  padding: 10px 13px;
+  border: 1px solid var(--dd-border-strong);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.12), rgba(244, 114, 182, 0.08));
+  color: var(--dd-muted);
+  font-size: 12.5px;
+}
+
+.documind-dashboard-guard-refusal > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.documind-dashboard-guard-refusal strong {
+  color: var(--dd-text);
+  font-weight: 600;
+}
+
+.documind-dashboard-guard-refusal small {
+  line-height: 1.4;
+}
+
 /* Hallucination guard */
 
 .documind-dashboard-guard-summary {

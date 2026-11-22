@@ -137,9 +137,10 @@ def generer_citations(reponse: str, passages: list[dict], obtenir_positions) -> 
 
 
 def preparer_reponse(answer: str | None, citations=None, verdict=None,
-                     refusal_reason=None, passages=None) -> dict:
+                     refusal_reason=None, passages=None,
+                     verification_origin=None) -> dict:
     """Format renvoyé par POST /chat/ask (identique pour le frontend)."""
-    return {
+    reponse = {
         "answer": answer,
         "citations": citations or [],
         "verdict": verdict,
@@ -147,6 +148,9 @@ def preparer_reponse(answer: str | None, citations=None, verdict=None,
         "status": "refused" if refusal_reason else "answered",
         "passages": passages or [],
     }
+    if verification_origin:
+        reponse["_verification_origin"] = verification_origin
+    return reponse
 
 
 
@@ -180,7 +184,8 @@ def agent_rag(question: str, rechercher, llm, obtenir_positions,
         g = guard(question, passages)
         if g.get("status") == "insufficient":
             return preparer_reponse(None, refusal_reason=g.get("reason", "Preuves insuffisantes."),
-                                    passages=passages)
+                                    passages=passages,
+                                    verification_origin="hallucination_guard")
 
     # 3. Génération avec Gemini
     reponse = llm(construire_prompt(question, passages), PROMPT_SYSTEME)
