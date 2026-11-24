@@ -2,6 +2,24 @@
 import { useEffect, useState, useRef } from "react";
 import { IconeCerveau } from "./Icones.jsx";
 import "./RagasLive.css";
+import { Bar } from "react-chartjs-2";
+
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Tooltip,
+  Legend
+);
 
 const API = "http://127.0.0.1:8000/ragas";
 
@@ -83,6 +101,107 @@ export default function RagasLive() {
   const terminees = interactions.filter(
     (item) => item.evaluation_status === "completed"
   ).length;
+
+  const interactionsEvaluees = interactions
+    .filter(
+      item =>
+        scoreValide(item.faithfulness) ||
+        scoreValide(item.answer_relevancy)
+    )
+    .sort((a, b) => a.message_id - b.message_id);
+
+  const nombreFaithfulnessValides = interactions.filter(
+    item => scoreValide(item.faithfulness)
+  ).length;
+
+  const nombreRelevancyValides = interactions.filter(
+    item => scoreValide(item.answer_relevancy)
+  ).length;
+
+  const liveChartData = {
+    labels: interactionsEvaluees.map(
+      item => `#${item.message_id}`
+    ),
+    datasets: [
+      {
+        label: "Faithfulness",
+        data: interactionsEvaluees.map(item =>
+          scoreValide(item.faithfulness)
+            ? item.faithfulness * 100
+            : null
+        ),
+        backgroundColor: "#a855f7",
+        borderRadius: 7,
+        maxBarThickness: 40,
+      },
+      {
+        label: "Answer Relevancy",
+        data: interactionsEvaluees.map(item =>
+          scoreValide(item.answer_relevancy)
+            ? item.answer_relevancy * 100
+            : null
+        ),
+        backgroundColor: "#f472b6",
+        borderRadius: 7,
+        maxBarThickness: 40,
+      },
+    ],
+  };
+
+  const liveChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: "index",
+      intersect: false,
+    },
+    plugins: {
+      legend: {
+        position: "top",
+        labels: {
+          color: "#e9d5ff",
+          usePointStyle: true,
+          padding: 20,
+        },
+      },
+      tooltip: {
+        backgroundColor: "#21132f",
+        titleColor: "#ffffff",
+        bodyColor: "#e9d5ff",
+        padding: 12,
+        callbacks: {
+          title: items =>
+            interactionsEvaluees[items[0].dataIndex]
+              ?.question || "",
+          label: context =>
+            `${context.dataset.label}: ${
+              context.parsed.y.toFixed(2)
+            }%`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: "#b9a6c4",
+        },
+        grid: {
+          display: false,
+        },
+      },
+      y: {
+        suggestedMin: 0,
+        suggestedMax: 100,
+        ticks: {
+          color: "#b9a6c4",
+          callback: value => `${value}%`,
+        },
+        grid: {
+          color: "rgba(244, 114, 182, 0.09)",
+        },
+      },
+    },
+  };
 
   const evaluables = interactions.filter(
     (item) => item.evaluation_status !== "completed"
@@ -235,6 +354,40 @@ export default function RagasLive() {
           {erreur}
         </div>
       )}
+      <div className="ragas-live-chart-section">
+  <h3 className="documind-dashboard-section-title">
+    Performances RAGAS par interaction
+  </h3>
+
+  <p className="documind-dashboard-section-hint">
+    Comparaison dynamique de la fidélité aux sources
+    et de la pertinence des réponses évaluées.
+  </p>
+
+  {interactionsEvaluees.length > 0 ? (
+    <div className="ragas-live-chart">
+      <Bar
+        data={liveChartData}
+        options={liveChartOptions}
+      />
+    </div>
+  ) : (
+    <div className="ragas-live-chart-empty">
+      Aucune interaction évaluée pour le moment.
+      Sélectionnez une question pour lancer une évaluation.
+    </div>
+  )}
+
+  <div className="ragas-live-chart-info">
+    <span>
+      Faithfulness : {nombreFaithfulnessValides} score(s) valide(s)
+    </span>
+
+    <span>
+      Answer Relevancy : {nombreRelevancyValides} score(s) valide(s)
+    </span>
+  </div>
+</div>
 
       <div className="ragas-live-toolbar">
         <strong>Interactions enregistrées</strong>

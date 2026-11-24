@@ -721,69 +721,7 @@ export default function Dashboard({ onRetour }) {
         <section ref={refRagas} className="documind-dashboard-section">
           <RagasLive />
 
-<div className="documind-dashboard-card">
-  <h2 className="documind-dashboard-section-title">
-    <span className="documind-dashboard-title-glyph">
-      <IconeCerveau taille={18} />
-    </span>
-    Évaluation RAGAS — DocuMind AI
-  </h2>
 
-  <p className="documind-dashboard-section-hint">
-    Évaluation réelle des réponses générées à partir d'un document PDF.
-    Les scores manquants ne sont pas comptabilisés dans les moyennes.
-  </p>
-
-  <div className="documind-dashboard-guard-summary">
-    <div className="documind-dashboard-guard-metric">
-      <strong>{afficherPourcentage(faithfulnessMoyenne)}</strong>
-      <span>
-        Faithfulness ({scoresRagasValides("faithfulness").length} valides)
-      </span>
-    </div>
-
-    <div className="documind-dashboard-guard-metric">
-      <strong>{afficherPourcentage(relevancyMoyenne)}</strong>
-      <span>
-        Answer Relevancy ({scoresRagasValides("answer_relevancy").length} valides)
-      </span>
-    </div>
-
-    <div className="documind-dashboard-guard-metric">
-      <strong>{evaluationsRagas.length}</strong>
-      <span>Questions testées</span>
-    </div>
-
-    <div className="documind-dashboard-guard-metric">
-      <strong>{nombreRefus}</strong>
-      <span>Refus</span>
-    </div>
-
-    <div className="documind-dashboard-guard-metric">
-      <strong>{nombreErreurs}</strong>
-      <span>Erreurs d'évaluation</span>
-    </div>
-  </div>
-
-  <h3 className="documind-dashboard-section-title">
-    Answer Relevancy par question
-  </h3>
-
-  <div className="documind-dashboard-chart-box">
-    {evaluationsRagas.length > 0 ? (
-      <Bar
-        data={ragasQuestionsChartData}
-        options={optionsBarres}
-      />
-    ) : (
-      <p className="documind-dashboard-empty">
-        Aucune évaluation RAGAS disponible.
-      </p>
-    )}
-  </div>
-
-
-</div>
 
           <div className="documind-dashboard-charts-grid">
             <div className="documind-dashboard-card documind-dashboard-ragas-main">
