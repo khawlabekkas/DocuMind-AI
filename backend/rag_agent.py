@@ -14,6 +14,8 @@ CONTRAT AVEC LE BINÔME 2 (fonctions optionnelles passées à agent_rag) :
 
 import re
 from rag_pipeline import charger_modele
+from time import perf_counter
+from functools import lru_cache
 
 PROMPT_SYSTEME = """Tu es DocuMind, un assistant qui répond UNIQUEMENT à partir des passages fournis.
 Règles :
@@ -137,6 +139,17 @@ def phrases_citant(reponse: str, n: int) -> str:
 
 
 
+@lru_cache(maxsize=128)
+def encoder_candidats_cache(candidats: tuple[str, ...]):
+    modele = charger_modele()
+
+    return modele.encode(
+        list(candidats),
+        normalize_embeddings=True,
+        convert_to_numpy=True,
+        show_progress_bar=False
+    )
+
 
 def lignes_les_plus_proches(
     lignes: list[dict],
@@ -174,17 +187,32 @@ def lignes_les_plus_proches(
 
                     candidats.append(texte)
                     indices.append((i, fin))
+        
+        # Embeddings des passages avec cache
+        debut_embedding = perf_counter()
 
-        # Embeddings normalisés avec le modèle existant
-        embeddings = modele.encode(
-            [phrase] + candidats,
+        embeddings_candidats = encoder_candidats_cache(
+            tuple(candidats)
+        )
+
+        # Encoder uniquement la nouvelle affirmation
+        embedding_phrase = modele.encode(
+            [phrase],
             normalize_embeddings=True,
             convert_to_numpy=True,
             show_progress_bar=False
+        )[0]
+
+        print(
+            f"[PERF EMBEDDINGS] "
+            f"{perf_counter() - debut_embedding:.2f}s | "
+            f"Cache : {encoder_candidats_cache.cache_info()}",
+            flush=True
         )
 
-        # Similarité cosinus
-        scores = embeddings[1:] @ embeddings[0]
+        # Même calcul de similarité cosinus
+        scores = embeddings_candidats @ embedding_phrase
+
 
         meilleur = int(scores.argmax())
         score = float(scores[meilleur])
