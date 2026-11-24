@@ -82,7 +82,7 @@ def _lots(passages: list[dict], limite: int | None = None) -> list[list[dict]]:
 def _resultat(type_, scope, passages, texte, obtenir_positions):
 
     # Nouveau surlignage précis uniquement pour les explications
-    if type_ == "explain":
+    if type_ in ("explain", "summarize","full"):
         try:
             texte, citations = generer_citations_precises(
                 texte,
@@ -227,6 +227,11 @@ def resumer_document(
             systeme=systeme_resume,
             langue=langues_llm[langue]
         )
+    print(
+        "[SUMMARY RAW RESPONSE]",
+        repr(texte),
+        flush=True
+    )
 
     return _resultat(
         "summarize",

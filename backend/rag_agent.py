@@ -365,17 +365,24 @@ def generer_citations_precises(
                         if fin <= len(lignes):
                             groupe = lignes[i:fin]
 
-                            index = len(textes)
-
-                            textes.append(
-                                " ".join(
-                                    l["texte"] for l in groupe
-                                )
+                            texte_candidat = " ".join(
+                                l["texte"] for l in groupe
                             )
 
-                            candidats.append((index, groupe))
+                            candidats.append((texte_candidat, groupe))
 
-                cache[n] = (lignes, candidats)
+                embeddings_candidats = None
+
+                if candidats:
+                    embeddings_candidats = encoder_candidats_cache(
+                        tuple(c[0] for c in candidats)
+                    )
+
+                cache[n] = (
+                    lignes,
+                    candidats,
+                    embeddings_candidats
+                )
 
             references.append((n, p))
 
@@ -412,14 +419,12 @@ def generer_citations_precises(
         nouveaux_numeros = []
 
         for n, p in tache["references"]:
-            lignes, candidats = cache[n]
+            lignes, candidats, embeddings_candidats = cache[n]
             selection = lignes
 
             if candidats:
-                indices = [c[0] for c in candidats]
-
                 scores = (
-                    embeddings[indices]
+                    embeddings_candidats
                     @ embeddings[tache["index"]]
                 )
 
