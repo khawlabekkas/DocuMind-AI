@@ -97,18 +97,50 @@ async def evaluer_interaction(
     if not contextes:
         raise ValueError("Contextes sources manquants.")
 
-    api_key = os.getenv("GROQ_API_KEY")
+    fournisseur = os.getenv(
+        "LLM_PROVIDER",
+        "groq"
+    ).strip().lower()
+
+    if fournisseur == "openrouter":
+
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        base_url = "https://openrouter.ai/api/v1"
+
+        modele = os.getenv(
+            "OPENROUTER_MODEL",
+            "openai/gpt-oss-20b"
+        )
+
+    elif fournisseur == "groq":
+
+        api_key = os.getenv("GROQ_API_KEY")
+        base_url = "https://api.groq.com/openai/v1"
+        modele = "openai/gpt-oss-20b"
+
+    else:
+        raise ValueError(
+            f"Fournisseur LLM inconnu : {fournisseur}"
+        )
 
     if not api_key:
-        raise ValueError("GROQ_API_KEY introuvable.")
+        raise ValueError(
+            f"Cle API manquante pour {fournisseur}"
+        )
 
     client = OpenAI(
         api_key=api_key,
-        base_url="https://api.groq.com/openai/v1"
+        base_url=base_url
+    )
+
+    print(
+        f"[RAGAS LIVE] Provider : {fournisseur} "
+        f"| Modele : {modele}",
+        flush=True
     )
 
     ragas_llm = llm_factory(
-        model="openai/gpt-oss-20b",
+        model=modele,
         provider="openai",
         client=client,
         mode=instructor.Mode.JSON,

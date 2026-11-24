@@ -12,9 +12,11 @@ from groq import Groq
 import time
 import re
 from groq import Groq, RateLimitError, APIStatusError
+from openai import OpenAI
 load_dotenv()
 
 _client = None
+_client_openrouter = None
 
 
 
@@ -25,6 +27,24 @@ def appeler_groq(
     max_completion_tokens: int = 700
 ) -> str:
     global _client
+
+    fournisseur = os.getenv(
+        "LLM_PROVIDER",
+        "groq"
+    ).strip().lower()
+
+    if fournisseur == "openrouter":
+        return appeler_openrouter(
+            prompt=prompt,
+            systeme=systeme,
+            temperature=temperature,
+            max_completion_tokens=max_completion_tokens
+        )
+
+    if fournisseur != "groq":
+        raise ValueError(
+            f"Fournisseur LLM inconnu : {fournisseur}"
+        )
 
     if _client is None:
         cle = os.getenv("GROQ_API_KEY")
@@ -104,6 +124,66 @@ def appeler_groq(
             raise
 
     raise RuntimeError("Impossible de contacter Groq.")
+def appeler_openrouter(
+    prompt: str,
+    systeme: str | None = None,
+    temperature: float = 0.1,
+    max_completion_tokens: int = 700
+) -> str:
+
+    global _client_openrouter
+
+    if _client_openrouter is None:
+        cle = os.getenv("OPENROUTER_API_KEY")
+
+        if not cle:
+            raise RuntimeError(
+                "OPENROUTER_API_KEY manquante dans .env"
+            )
+
+        _client_openrouter = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=cle,
+            timeout=90.0,
+            max_retries=2
+        )
+
+    messages = []
+
+    if systeme:
+        messages.append({
+            "role": "system",
+            "content": systeme
+        })
+
+    messages.append({
+        "role": "user",
+        "content": prompt
+    })
+
+    reponse = _client_openrouter.chat.completions.create(
+        model=os.getenv(
+            "OPENROUTER_MODEL",
+            "openai/gpt-oss-20b"
+        ),
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_completion_tokens
+    )
+
+    usage = reponse.usage
+
+    print(
+        f"[OPENROUTER] "
+        f"finish_reason={reponse.choices[0].finish_reason} "
+        f"tokens={usage.total_tokens if usage else 'unknown'} "
+        f"cost=${getattr(usage, 'cost', 'unknown')}",
+        flush=True
+    )
+
+    return (
+        reponse.choices[0].message.content or ""
+    ).strip()
 
 
 

@@ -8,26 +8,42 @@ from ragas.llms import llm_factory
 
 load_dotenv()
 
-api_key = os.getenv("GROQ_API_KEY")
+fournisseur = os.getenv(
+    "LLM_PROVIDER",
+    "groq"
+).strip().lower()
+
+if fournisseur == "openrouter":
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    base_url = "https://openrouter.ai/api/v1"
+
+    modele = os.getenv(
+        "OPENROUTER_MODEL",
+        "openai/gpt-oss-20b"
+    )
+
+elif fournisseur == "groq":
+    api_key = os.getenv("GROQ_API_KEY")
+    base_url = "https://api.groq.com/openai/v1"
+    modele = "openai/gpt-oss-20b"
+
+else:
+    raise ValueError(
+        f"Fournisseur LLM inconnu : {fournisseur}"
+    )
 
 if not api_key:
-    raise ValueError("GROQ_API_KEY introuvable dans .env")
+    raise ValueError(
+        f"Cle API manquante pour {fournisseur}"
+    )
 
-
-
-import instructor
-from openai import OpenAI
-from ragas.llms import llm_factory
-
-# OpenAI-compatible Groq client
 client = OpenAI(
     api_key=api_key,
-    base_url="https://api.groq.com/openai/v1"
+    base_url=base_url
 )
 
-# RAGAS with Instructor tool-calling mode
 ragas_llm = llm_factory(
-    model="openai/gpt-oss-20b",
+    model=modele,
     provider="openai",
     client=client,
     mode=instructor.Mode.JSON,
@@ -35,8 +51,9 @@ ragas_llm = llm_factory(
     max_completion_tokens=4096
 )
 
-
-print("RAGAS + Groq configured successfully!")
+print(
+    f"RAGAS + {fournisseur} configured successfully!"
+)
 
 import asyncio
 from ragas.metrics.collections import Faithfulness

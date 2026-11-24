@@ -3,8 +3,12 @@ import html
 import io
 import re
 from pathlib import Path
+import hashlib
+import sqlite3
+import os
 
 import pymupdf
+import json
 
 from translation_agent import (
     extraire_structure_pdf,
@@ -15,6 +19,263 @@ from translation_agent import (
 
 
 DOSSIER_FONTS = Path(__file__).resolve().parent / "fonts"
+# ==========================================
+# CACHE PERSISTANT — TRADUCTION ARABE
+# ==========================================
+
+CACHE_ARABE = (
+    Path(__file__).resolve().parent
+    / "cache"
+    / "traductions_arabes.sqlite3"
+)
+
+VERSION_CACHE_ARABE = "ar-v1"
+
+
+def initialiser_cache_arabe():
+    CACHE_ARABE.parent.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    with sqlite3.connect(CACHE_ARABE, timeout=10) as con:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS traductions (
+                cle TEXT PRIMARY KEY,
+                traduction TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+
+def cle_cache_arabe(texte):
+    fournisseur = os.getenv(
+        "LLM_PROVIDER",
+        "groq"
+    ).strip().lower()
+
+    if fournisseur == "openrouter":
+        modele = os.getenv(
+            "OPENROUTER_MODEL",
+            "openai/gpt-oss-20b"
+        )
+    else:
+        modele = os.getenv(
+            "GROQ_MODEL",
+            "openai/gpt-oss-20b"
+        )
+
+    contenu = (
+        f"{VERSION_CACHE_ARABE}|"
+        f"{fournisseur}|{modele}|ar|{texte}"
+    )
+
+    return hashlib.sha256(
+        contenu.encode("utf-8")
+    ).hexdigest()
+
+
+def lire_cache_arabe(texte):
+    cle = cle_cache_arabe(texte)
+
+    with sqlite3.connect(CACHE_ARABE, timeout=10) as con:
+        resultat = con.execute(
+            """
+            SELECT traduction
+            FROM traductions
+            WHERE cle = ?
+            """,
+            (cle,)
+        ).fetchone()
+
+    return resultat[0] if resultat else None
+
+
+def sauvegarder_cache_arabe(texte, traduction):
+    traduction = str(traduction or "").strip()
+
+    if not traduction:
+        return
+
+    cle = cle_cache_arabe(texte)
+
+    with sqlite3.connect(CACHE_ARABE, timeout=10) as con:
+        con.execute(
+            """
+            INSERT OR REPLACE INTO traductions
+            (cle, traduction)
+            VALUES (?, ?)
+            """,
+            (cle, traduction)
+        )
+
+
+def traduire_arabe_cache(texte, llm=None):
+    if est_texte_a_conserver(texte):
+        return texte
+
+    traduction = lire_cache_arabe(texte)
+
+    if traduction:
+        print(
+            "[ARABIC CACHE] HIT — traduction reutilisee",
+            flush=True
+        )
+        return traduction
+
+    print(
+        "[ARABIC CACHE] MISS — appel Groq",
+        flush=True
+    )
+
+    for tentative in range(2):
+        resultat = traduire_texte(
+            texte,
+            "ar",
+            llm=llm
+        )
+
+        traduction = str(resultat or "").strip()
+
+        if traduction:
+            sauvegarder_cache_arabe(
+                texte,
+                traduction
+            )
+
+            return traduction
+
+        print(
+            f"[ARABIC CACHE] Reponse vide "
+            f"{tentative + 1}/2",
+            flush=True
+        )
+
+    raise ValueError(
+        "Le modele a retourne une traduction arabe vide."
+    )
+def traduire_arabe_batch(textes, llm=None):
+    """
+    Traduit plusieurs blocs arabes en un seul appel.
+    Réutilise le cache et vérifie les identifiants.
+    """
+
+    if llm is None:
+        from llm import appeler_groq
+        llm = appeler_groq
+
+    resultats = {}
+    manquants = {}
+
+    for texte in dict.fromkeys(textes):
+
+        if est_texte_a_conserver(texte):
+            resultats[texte] = texte
+            continue
+
+        cache = lire_cache_arabe(texte)
+
+        if cache:
+            resultats[texte] = cache
+        else:
+            identifiant = str(len(manquants))
+            manquants[identifiant] = texte
+
+    if not manquants:
+        return resultats
+
+    systeme = (
+        "Tu es un traducteur professionnel. "
+        "Traduis chaque bloc intégralement en arabe. "
+        "Conserve les termes techniques, les chiffres "
+        "et les retours à la ligne nécessaires. "
+        "Ne résume pas et ne fusionne pas les blocs. "
+        "Retourne uniquement un objet JSON valide "
+        "avec les mêmes identifiants et les textes "
+        "traduits comme valeurs."
+    )
+
+    prompt = (
+        "Traduis les valeurs de cet objet JSON "
+        "en arabe sans modifier ses clés :\n\n"
+        + json.dumps(
+            manquants,
+            ensure_ascii=False
+        )
+    )
+
+    print(
+        f"[ARABIC BATCH] {len(manquants)} blocs",
+        flush=True
+    )
+
+    reponse = str(
+        llm(prompt, systeme) or ""
+    ).strip()
+
+    reponse = re.sub(
+        r"^```(?:json)?\s*|\s*```$",
+        "",
+        reponse
+    ).strip()
+
+    try:
+        donnees = json.loads(reponse)
+
+        if not isinstance(donnees, dict):
+            donnees = {}
+
+    except json.JSONDecodeError:
+        donnees = {}
+
+    for identifiant, texte in manquants.items():
+
+        traduction = donnees.get(identifiant)
+
+        if (
+            isinstance(traduction, str)
+            and traduction.strip()
+        ):
+            traduction = traduction.strip()
+
+            sauvegarder_cache_arabe(
+                texte,
+                traduction
+            )
+
+            resultats[texte] = traduction
+
+    # Retraduire uniquement les blocs manquants.
+    for texte in manquants.values():
+        if texte not in resultats:
+            resultats[texte] = traduire_arabe_cache(
+                texte,
+                llm=llm
+            )
+
+    return resultats
+def preparer_lots_arabes(textes, taille_max=500):
+    lots = []
+    courant = []
+    longueur = 0
+
+    for texte in textes:
+
+        if courant and (
+            longueur + len(texte) > taille_max
+            or len(courant) >= 4
+        ):
+            lots.append(courant)
+            courant = []
+            longueur = 0
+
+        courant.append(texte)
+        longueur += len(texte)
+
+    if courant:
+        lots.append(courant)
+
+    return lots
 
 
 def nettoyer_texte(texte):
@@ -128,73 +389,71 @@ def creer_story(contenu, archive):
 
 def calculer_zone(page, groupe, suivant, tous):
     """
-    Calcule une zone de placement sans utiliser
-    automatiquement toute la page.
+    Adapte les zones de texte à la lecture RTL
+    en respectant les éléments voisins.
     """
-    x0, y0, x1, y1 = groupe["bbox"]
+
+    rect = pymupdf.Rect(groupe["bbox"])
+    limites = page.rect
 
     marge = 35
-    largeur_page = page.rect.width
-    hauteur_page = page.rect.height
 
-    est_paragraphe = groupe["type"] == "paragraphe"
+    # Utiliser la largeur disponible pour le texte arabe.
+    gauche = max(
+        limites.x0 + 5,
+        min(rect.x0, limites.x0 + marge)
+    )
 
-    # Pour les paragraphes, autoriser une zone large.
-    # Pour les éléments courts, garder leur région.
-    if est_paragraphe:
-        gauche = max(marge, x0 - 4)
-        droite = largeur_page - marge
-    else:
-        gauche = max(5, x0 - 3)
-        droite = min(
-            largeur_page - 5,
-            max(x1 + 45, x0 + 120)
-        )
+    droite = min(
+        limites.x1 - 5,
+        max(rect.x1, limites.x1 - marge)
+    )
 
-    # Éviter d'empiéter sur un élément
-    # placé à côté sur la même ligne.
+    haut = max(limites.y0 + 2, rect.y0)
+    bas = min(limites.y1 - 2, rect.y1 + 20)
+
+    # Protéger les éléments voisins sur la même ligne.
     for autre in tous:
         if autre is groupe:
             continue
 
-        ax0, ay0, ax1, ay1 = autre["bbox"]
+        voisin = pymupdf.Rect(autre["bbox"])
 
         meme_ligne = (
-            ay0 < y1 and ay1 > y0
+            voisin.y0 < rect.y1
+            and voisin.y1 > rect.y0
         )
 
-        if meme_ligne and ax0 >= x1:
-            droite = min(droite, ax0 - 5)
+        if meme_ligne:
+            if voisin.x0 >= rect.x1:
+                droite = min(droite, voisin.x0 - 2)
 
-    if droite <= gauche + 15:
+            if voisin.x1 <= rect.x0:
+                gauche = max(gauche, voisin.x1 + 2)
+
+    # Protéger les blocs situés en dessous.
+    for autre in tous:
+        if autre is groupe:
+            continue
+
+        voisin = pymupdf.Rect(autre["bbox"])
+
+        meme_colonne = (
+            voisin.x0 < droite
+            and voisin.x1 > gauche
+        )
+
+        if meme_colonne and voisin.y0 >= rect.y1:
+            bas = min(bas, voisin.y0 - 1)
+
+    zone = pymupdf.Rect(gauche, haut, droite, bas)
+
+    if zone.is_empty:
         raise ValueError(
-            "Région horizontale trop étroite."
+            "Zone de placement arabe invalide."
         )
 
-    haut = max(2, y0 - 3)
-
-    # Le groupe suivant limite la hauteur uniquement
-    # s'il se trouve réellement en dessous.
-    bas = hauteur_page - 20
-
-    if suivant is not None:
-        prochain_y = suivant["bbox"][1]
-
-        if prochain_y > y1:
-            bas = min(bas, prochain_y - 2)
-
-    # Un peu de marge pour les métriques de police.
-    bas = max(bas, y1 + 3)
-    bas = min(bas, hauteur_page - 2)
-
-    return pymupdf.Rect(
-        gauche,
-        haut,
-        droite,
-        bas
-    )
-
-
+    return zone
 def exporter_pdf_arabe_layout(
     chemin_original,
     chemin_sortie,
@@ -209,6 +468,7 @@ def exporter_pdf_arabe_layout(
 
     chemin_original = Path(chemin_original)
     chemin_sortie = Path(chemin_sortie)
+    initialiser_cache_arabe()
 
     if chemin_original.resolve() == chemin_sortie.resolve():
         raise ValueError(
@@ -241,6 +501,23 @@ def exporter_pdf_arabe_layout(
 
     groupes = regrouper_paragraphes_pdf(structure)
     pages = preparer_paragraphes_traduction(groupes)
+    textes = [
+        groupe["texte_traduction"]
+        for info in pages
+        for groupe in info["paragraphes"]
+    ]
+
+    traductions_arabes = {}
+
+    for lot in preparer_lots_arabes(
+        list(dict.fromkeys(textes))
+    ):
+        traductions_arabes.update(
+            traduire_arabe_batch(
+                lot,
+                llm=llm
+            )
+        )
 
     archive = pymupdf.Archive(
         str(DOSSIER_FONTS)
@@ -266,16 +543,9 @@ def exporter_pdf_arabe_layout(
             for index, groupe in enumerate(elements):
                 texte_original = groupe["texte_traduction"]
 
-                if est_texte_a_conserver(texte_original):
-                    traduction = texte_original
-                else:
-                    traduction = traduire_texte(
-                        texte_original,
-                        "ar",
-                        llm=llm
-                    )
+                traduction = traductions_arabes[texte_original]
 
-                traduction = str(traduction).strip()
+                traduction = str(traduction or "").strip()
 
                 if not traduction:
                     raise ValueError(
@@ -304,28 +574,57 @@ def exporter_pdf_arabe_layout(
                     elements
                 )
 
-                contenu = construire_html(
-                    traduction,
-                    taille,
-                    gras,
-                    couleur
+                # Ajustement progressif de la taille du texte arabe.
+                taille_initiale = taille
+                taille_minimale = min(
+                    taille_initiale,
+                    max(8.0, taille_initiale * 0.75)
                 )
 
-                story = creer_story(
-                    contenu,
-                    archive
-                )
+                taille_actuelle = taille_initiale
+                contenu = None
 
-                reste, _ = story.place(zone)
-
-                if reste != 0:
-                    raise ValueError(
-                        f"Débordement arabe page "
-                        f"{numero_page + 1}, "
-                        f"groupe {index + 1}. "
-                        "La traduction nécessite une "
-                        "réorganisation de la mise en page."
+                while True:
+                    candidat = construire_html(
+                        traduction,
+                        taille_actuelle,
+                        gras,
+                        couleur
                     )
+
+                    story = creer_story(
+                        candidat,
+                        archive
+                    )
+
+                    reste, zone_utilisee = story.place(zone)
+
+                    if reste == 0:
+                        contenu = candidat
+                        break
+
+                    if taille_actuelle <= taille_minimale:
+                        break
+
+                    taille_actuelle = max(
+                        taille_minimale,
+                        taille_actuelle - 0.5
+                    )
+
+                if contenu is None:
+                    raise ValueError(
+                        f"Débordement arabe page {numero_page + 1}, "
+                        f"groupe {index + 1}. "
+                        "Une mise en page adaptative est nécessaire."
+                    )
+
+                print(
+                    f"[ARABIC PDF] Page {numero_page + 1} | "
+                    f"Bloc {index + 1} | "
+                    f"Police : {taille_initiale:.1f} -> "
+                    f"{taille_actuelle:.1f} pt",
+                    flush=True
+                )
 
                 operations.append({
                     "page": numero_page,

@@ -453,13 +453,21 @@ def ask(q: Question):
                     )
                 )
 
+                metadata_originale = dernier.get("metadata") or {}
+
                 res = {
                     "answer": traduction,
                     "status": "answered",
-                    "citations": [],
+                    "citations": metadata_originale.get("citations") or [],
                     "verdict": None,
                     "refusal_reason": None
                 }
+
+                print(
+                    f"[TRANSLATION] Citations preservees : "
+                    f"{len(res['citations'])}",
+                    flush=True
+                )
 
         # Analyse d'une page précise
         elif (
@@ -735,8 +743,13 @@ def traduction_texte(d: DemandeTraductionTexte):
         resultat = traduire_texte(
             texte=d.texte,
             langue_cible=d.langue_cible,
-            llm=partial(etat.llm, max_completion_tokens=1800)
+            llm=partial(etat.llm, max_completion_tokens=6000)
         )
+
+        if not resultat or not resultat.strip():
+            raise ValueError(
+                "Le modèle a retourné une traduction vide."
+            )
 
         return {
             "traduction": resultat,

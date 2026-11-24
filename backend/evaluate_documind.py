@@ -108,9 +108,34 @@ async def noter(metric, nom: str, **kwargs):
 async def main():
     if not QUESTIONS or DOCUMENT_ID.startswith("REMPLACER_") or any(q.startswith("REMPLACER_") for q in QUESTIONS):
         raise ValueError("Renseigner DOCUMENT_ID et QUESTIONS dans le script.")
-    api_key = os.getenv("GROQ_API_KEY")
+    fournisseur = os.getenv(
+        "LLM_PROVIDER",
+        "groq"
+    ).strip().lower()
+
+    if fournisseur == "openrouter":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        base_url = "https://openrouter.ai/api/v1"
+
+        modele = os.getenv(
+            "OPENROUTER_MODEL",
+            "openai/gpt-oss-20b"
+        )
+
+    elif fournisseur == "groq":
+        api_key = os.getenv("GROQ_API_KEY")
+        base_url = "https://api.groq.com/openai/v1"
+        modele = "openai/gpt-oss-20b"
+
+    else:
+        raise ValueError(
+            f"Fournisseur LLM inconnu : {fournisseur}"
+        )
+
     if not api_key:
-        raise ValueError("GROQ_API_KEY introuvable dans .env")
+        raise ValueError(
+            f"Cle API manquante pour {fournisseur}"
+        )
 
     import database as db
     from main import etat
@@ -123,10 +148,24 @@ async def main():
     etat.moteur.recharger(db.tous_les_chunks())
     charger_modele()
 
-    client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
+    client = OpenAI(
+        api_key=api_key,
+        base_url=base_url
+    )
+
+    print(
+        f"[RAGAS EVALUATION] Provider : {fournisseur} "
+        f"| Modele : {modele}",
+        flush=True
+    )
+
     ragas_llm = llm_factory(
-        model="openai/gpt-oss-20b", provider="openai", client=client,
-        mode=instructor.Mode.JSON, temperature=0, max_completion_tokens=4096,
+        model=modele,
+        provider="openai",
+        client=client,
+        mode=instructor.Mode.JSON,
+        temperature=0,
+        max_completion_tokens=4096
     )
     faithfulness = Faithfulness(llm=ragas_llm)
     relevancy = AnswerRelevancy(llm=ragas_llm, embeddings=BGEEmbeddings(), strictness=1)

@@ -765,14 +765,21 @@ if (intention?.type === "message") {
       dernierMessage.texte,
       intention.langue
     );
+    
 
-    ajouter({
+        ajouter({
       role: "assistant",
       texte: traduction,
-      citations: [],
+      citations: dernierMessage.citations || [],
       verdict: null,
       refus: null
     });
+        await enregistrerAnalyse(
+      q,
+      traduction,
+      dernierMessage.citations || [],
+      "translation"
+    );
   } catch (erreur) {
     ajouter({
       role: "erreur",
@@ -781,6 +788,7 @@ if (intention?.type === "message") {
   } finally {
     setAttente(false);
   }
+  
 
   return;
 }
