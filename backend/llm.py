@@ -21,7 +21,8 @@ _client = None
 def appeler_groq(
     prompt: str,
     systeme: str | None = None,
-    temperature: float = 0.1
+    temperature: float = 0.1,
+    max_completion_tokens: int = 700
 ) -> str:
     global _client
 
@@ -57,7 +58,12 @@ def appeler_groq(
                 ),
                 messages=messages,
                 temperature=temperature,
-                 max_completion_tokens=700,
+                max_completion_tokens=max_completion_tokens,
+            )
+            print(
+                f"[GROQ] finish_reason={reponse.choices[0].finish_reason} "
+                f"tokens={reponse.usage.total_tokens if reponse.usage else 'unknown'}",
+                flush=True
             )
 
             return (

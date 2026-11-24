@@ -14,6 +14,7 @@ from rag_pipeline import charger_modele
 import re
 
 from dotenv import load_dotenv
+from functools import partial
 
 load_dotenv()  # avant d'importer database (DB_PATH)
 
@@ -189,28 +190,59 @@ class Question(BaseModel):
 
 
 
-def detecter_page_analyse(question: str) -> int | None:
-    texte = question.strip().lower()
 
-    motifs = [
-        # FranÃ§ais, anglais et espagnol
+def detecter_page_analyse(question: str) -> int | None:
+    import re
+    import unicodedata
+
+    texte = unicodedata.normalize("NFKC", question.strip().lower())
+
+    # Remove Arabic diacritics: حلّل -> حلل
+    texte = re.sub(r"[\u064B-\u065F\u0670]", "", texte)
+
+    nombres_arabes = {
+        "الاولى": 1, "الاول": 1,
+        "الثانية": 2, "الثاني": 2,
+        "الثالثة": 3, "الثالث": 3,
+        "الرابعة": 4, "الرابع": 4,
+        "الخامسة": 5, "الخامس": 5,
+        "السادسة": 6, "السادس": 6,
+        "السابعة": 7, "السابع": 7,
+        "الثامنة": 8, "الثامن": 8,
+        "التاسعة": 9, "التاسع": 9,
+        "العاشرة": 10, "العاشر": 10,
+    }
+
+    # French, English and Spanish
+    motif_latin = (
         r"\b(?:analyse|analyser|analyze|analiza|analizar)\s+"
         r"(?:(?:uniquement|only|solo)\s+)?"
         r"(?:(?:la|the)\s+)?"
-        r"(?:page|pÃ¡gina|pagina)\s+(\d+)\b",
+        r"(?:page|página|pagina)\s+(\d+)\b"
+    )
 
-        # Arabe : Ø­Ù„Ù„ Ø§Ù„ØµÙØ­Ø© 2 / Ø­Ù„Ù‘Ù„ ØµÙØ­Ø© Ù¢
-        r"(?:Ø­Ù„Ù„|Ø­Ù„Ù‘Ù„|ØªØ­Ù„ÙŠÙ„)\s+"
-        r"(?:Ø§Ù„ØµÙØ­Ø©|ØµÙØ­Ø©)\s+([0-9Ù -Ù©Û°-Û¹]+)",
-    ]
+    match = re.search(motif_latin, texte)
+    if match:
+        return int(match.group(1))
 
-    for motif in motifs:
-        correspondance = re.search(motif, texte)
+    # Arabic: حلل الصفحة 2 / حلل الصفحة الثانية
+    motif_arabe = (
+        r"(?:حلل|تحليل|اشرح|فسر)\s+"
+        r"(?:الصفحة|صفحة)\s+"
+        r"([0-9\u0660-\u0669\u06F0-\u06F9]+|[\u0621-\u064A]+)"
+    )
 
-        if correspondance:
-            return int(correspondance.group(1))
+    match = re.search(motif_arabe, texte)
+    if match:
+        valeur = match.group(1)
+
+        if valeur.isdigit():
+            return int(valeur)
+
+        return nombres_arabes.get(valeur)
 
     return None
+
 
 
 def detecter_resume_complet(question: str) -> bool:
@@ -307,6 +339,35 @@ print(
     flush=True
 )
 
+def detecter_traduction_reponse(question: str) -> str | None:
+    import unicodedata
+
+    texte = unicodedata.normalize("NFKC", question.lower())
+    texte = re.sub(r"[\u064B-\u065F\u0670]", "", texte)
+
+    intentions = [
+        r"\btranslat(?:e|ion)\b",
+        r"\btradui(?:s|re|t)\b",
+        r"\btradu(?:ce|cir|zca)\b",
+        r"ترجم",
+    ]
+
+    references = [
+        r"\b(?:previous|last|earlier)\s+(?:answer|response)\b",
+        r"\b(?:réponse|reponse)\s+précédente\b",
+        r"\b(?:respuesta)\s+anterior\b",
+        r"(?:اجابتك|الاجابة|ردك)\s+(?:السابقة|السابق)",
+    ]
+
+    if not (
+        any(re.search(p, texte) for p in intentions)
+        and any(re.search(p, texte) for p in references)
+    ):
+        return None
+
+    return detecter_langue_question(question)
+
+
 
 
 
@@ -354,8 +415,56 @@ def ask(q: Question):
     flush=True
 )
     
+        langue_traduction = detecter_traduction_reponse(q.question)
+
+        if langue_traduction is not None:
+            dernier = next(
+                (
+                    m for m in reversed(historique)
+                    if m.get("role") == "assistant"
+                    and m.get("contenu", "").strip()
+                ),
+                None
+            )
+
+            if dernier is None:
+                res = {
+                    "answer": None,
+                    "status": "refused",
+                    "citations": [],
+                    "verdict": None,
+                    "refusal_reason": (
+                        "Aucune réponse précédente à traduire."
+                    )
+                }
+            else:
+                traduction = traduire_texte(
+                    texte=dernier["contenu"],
+                    langue_cible=langue_traduction,
+                    llm=partial(
+                        etat.llm,
+                        max_completion_tokens=3000
+                    )
+                )
+
+                res = {
+                    "answer": traduction,
+                    "status": "answered",
+                    "citations": [],
+                    "verdict": None,
+                    "refusal_reason": None
+                }
+
+        # Analyse d'une page précise
+        elif (
+            numero_page is not None
+            and q.document_ids
+            and len(q.document_ids) == 1
+        ):
+
+    
         # Analyse d'une page prÃ©cise
-        if (
+          if (
             numero_page is not None
             and q.document_ids
             and len(q.document_ids) == 1
@@ -376,7 +485,7 @@ def ask(q: Question):
             analyse_page = analyser_document_complet(
                 document_id,
                 pages,
-                etat.llm,
+                partial(etat.llm, max_completion_tokens=3000),
                 db.obtenir_positions,
                 langue=langue,
                 page_debut=numero_page,
@@ -423,79 +532,17 @@ def ask(q: Question):
         # Toutes les autres questions : RAG existant
         else:
             print("DEBUG ROUTE: AGENT_RAG", flush=True)
+
             res = agent_rag(
                 q.question,
                 etat.moteur.rechercher,
-                etat.llm,
+                partial(etat.llm, max_completion_tokens=1800),
                 db.obtenir_positions,
                 document_ids=q.document_ids,
                 guard=etat.guard,
                 fact_check=etat.fact_check,
                 historique=historique
             )
-    
-    
-            if numero_page is not None and q.document_ids and len(q.document_ids) == 1:
-                document_id = q.document_ids[0]
-    
-                if not db.obtenir_document(document_id):
-                    raise HTTPException(404, "Document introuvable.")
-    
-                pages = db.obtenir_pages(document_id)
-    
-                if numero_page < 1 or numero_page > len(pages):
-                    raise HTTPException(
-                        400,
-                        f"La page {numero_page} n'existe pas dans ce document."
-                    )
-                page_analyse = detecter_page_analyse(q.question)
-                langue = detecter_langue_question(q.question)
-                print(
-                    "DEBUG ANALYSE PAGE:",
-                    "page =", numero_page,
-                    "langue =", langue,
-                    flush=True
-                )
-                print(
-                    "DEBUG ROUTING:",
-                    "question =", repr(q.question),
-                    "page =", numero_page,
-                    "resume =", resume_complet,
-                    "langue =", langue,
-                    "documents =", q.document_ids,
-                    flush=True
-                )
-
-    
-                analyse_page = analyser_document_complet(
-                    document_id,
-                    pages,
-                    etat.llm,
-                    db.obtenir_positions,
-                    langue=langue,
-                    page_debut=numero_page,
-                    page_fin=numero_page
-                )
-    
-                res = {
-                    "answer": analyse_page["result"],
-                    "status": "answered",
-                    "citations": analyse_page.get("citations", []),
-                    "verdict": None,
-                    "refusal_reason": None
-                }
-    
-            else:
-                res = agent_rag(
-                    q.question,
-                    etat.moteur.rechercher,
-                    etat.llm,
-                    db.obtenir_positions,
-                    document_ids=q.document_ids,
-                    guard=etat.guard,
-                    fact_check=etat.fact_check,
-                    historique=historique
-                )
     
     except HTTPException:
         raise
@@ -565,16 +612,27 @@ def analyse(d: DemandeAnalyse):
             print("DEBUG ROUTE: RESUMER_DOCUMENT", flush=True)
             res = resumer_document(d.document_id, pages, etat.llm, db.obtenir_positions,
                                    d.page_debut, d.page_fin,langue=d.langue)
+        
         elif d.type == "explain":
             if not d.section:
-                raise HTTPException(400, "PrÃ©cisez la section ou le concept Ã  expliquer.")
-            res = expliquer_section(d.document_id, d.section, etat.moteur.rechercher,
-                                    etat.llm, db.obtenir_positions)
+                raise HTTPException(
+                    400,
+                    "Précisez la section ou le concept à expliquer."
+                )
+
+            res = expliquer_section(
+                d.document_id,
+                d.section,
+                etat.moteur.rechercher,
+                partial(etat.llm, max_completion_tokens=1800),
+                db.obtenir_positions
+            )
+
         elif d.type == "full":
             res = analyser_document_complet(
                 d.document_id,
                 pages,
-                etat.llm,
+                    partial(etat.llm, max_completion_tokens=3500),
                 db.obtenir_positions,
                 langue=d.langue,
                 page_debut=d.page_debut,
@@ -664,7 +722,7 @@ def traduction_texte(d: DemandeTraductionTexte):
         resultat = traduire_texte(
             texte=d.texte,
             langue_cible=d.langue_cible,
-            llm=etat.llm
+            llm=partial(etat.llm, max_completion_tokens=1800)
         )
 
         return {
@@ -705,7 +763,7 @@ def exporter_txt(d: DemandeTraduction):
         pages_traduites = traduire_document(
             chemin_pdf=chemin,
             langue_cible=d.langue_cible,
-            llm=etat.llm
+            llm=partial(etat.llm, max_completion_tokens=1800)
         )
 
         import tempfile
@@ -757,14 +815,14 @@ def exporter_pdf(d: DemandeTraduction):
                 exporter_pdf_arabe_layout(
                     chemin_original=chemin,
                     chemin_sortie=chemin_pdf,
-                    llm=etat.llm
+                    llm=partial(etat.llm, max_completion_tokens=1800)
                 )
             else:
                 exporter_pdf_fidele(
                     chemin_original=chemin,
                     chemin_sortie=chemin_pdf,
                     langue_cible=d.langue_cible,
-                    llm=etat.llm
+                    llm=partial(etat.llm, max_completion_tokens=1800)
                 )
 
             with open(chemin_pdf, "rb") as fichier:
@@ -875,6 +933,9 @@ def lancer_workflow(d: DemandeWorkflow):
             **resultat,
             "conversation_id": conversation_id
         }
+
+    except HTTPException:
+        raise
 
     except ValueError as e:
         raise HTTPException(
@@ -1030,7 +1091,7 @@ tests = [
     "Ø­Ù„Ù„ Ø§Ù„ØµÙØ­Ø© 2",
     "Ø­Ù„Ù‘Ù„ Ø§Ù„ØµÙØ­Ø© Ù¢",
     "Analyze page 3 en arabic",
-    "Analiza la pÃ¡gina 4",
+   "Analiza la página 4",
     "Analyse la page 2 en anglais",
 ]
 

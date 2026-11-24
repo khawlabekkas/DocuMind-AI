@@ -27,17 +27,28 @@ def traduire_texte(
         llm = appeler_groq
 
     systeme = (
-        "Tu es un agent de traduction professionnel. "
-        "Traduis fidèlement le texte fourni. "
-        "Conserve le sens, les termes techniques, les chiffres "
-        "et la structure du texte. "
-        "Ne résume pas et n'ajoute aucune information. "
-        "Retourne uniquement la traduction."
+        "Tu es DocuMind, un traducteur professionnel. "
+        "Traduis intégralement le texte fourni dans la langue demandée. "
+        "Ne résume pas, ne supprime aucune information et n'ajoute rien. "
+        "Conserve fidèlement les termes techniques, les nombres "
+        "et les références de citation comme [1], [2] et [3]. "
+        "Conserve les titres Markdown et les listes à puces. "
+        "Si le texte contient un tableau Markdown, transforme-le "
+        "en sections avec des sous-titres et des listes à puces "
+        "pour garantir une présentation lisible. "
+        "N'utilise aucune balise HTML ou XML. "
+        "Ne reproduis jamais les délimiteurs du texte source. "
+        "Termine toutes les phrases et toutes les sections. "
+        "Retourne uniquement le texte traduit."
     )
 
     prompt = (
-        f"Traduis le texte suivant en {LANGUES[langue_cible]} :\n\n"
-        f"<texte>\n{texte}\n</texte>"
+        f"Langue cible : {LANGUES[langue_cible]}\n\n"
+        "Traduis intégralement le contenu ci-dessous. "
+        "Ne reproduis pas les délimiteurs.\n\n"
+        "=== DÉBUT DU CONTENU ===\n"
+        f"{texte}\n"
+        "=== FIN DU CONTENU ==="
     )
 
     debut = perf_counter()

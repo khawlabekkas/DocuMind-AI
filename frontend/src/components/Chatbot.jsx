@@ -22,7 +22,9 @@ import {
 // Transforme "texte [1] suite [2]" en texte + boutons cliquables
 
 function TexteCite({ texte, citations = [], onCitation }) {
-  const contenu = String(texte || "");
+  const contenu = String(texte || "")
+    .replace(/【(\d+)】/g, "[$1]")
+    .replace(/［(\d+)］/g, "[$1]");
 
   // Detect Arabic while keeping citations clickable.
   const estArabe = /[\u0600-\u06FF]/.test(contenu);
@@ -221,7 +223,7 @@ function Message({ m, onCitation, nomDocument, onOuvrirDocument }) {
           {m.citations.map((c) => (
             <button key={c.numero} className="source" onClick={() => onCitation(c)}>
               <b>[{c.numero}]</b> {nomDocument(c.document_id)} — page {c.page}
-              <small>« {c.extrait.slice(0, 140)}… »</small>
+              <small>« {(c.extrait ?? "").slice(0, 140)}… »</small>
             </button>
           ))}
         </div>

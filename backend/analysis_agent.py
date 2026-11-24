@@ -13,8 +13,11 @@ Format de sortie (POST /analysis/run) :
 
 import time
 
-
-from rag_agent import generer_citations
+from functools import partial
+from rag_agent import (
+    generer_citations,
+    generer_citations_precises
+)
 
 
 MAX_CARACTERES = 8_000
@@ -75,14 +78,52 @@ def _lots(passages: list[dict], limite: int | None = None) -> list[list[dict]]:
 
 
 
+
 def _resultat(type_, scope, passages, texte, obtenir_positions):
+
+    # Nouveau surlignage précis uniquement pour les explications
+    if type_ == "explain":
+        try:
+            texte, citations = generer_citations_precises(
+                texte,
+                passages,
+                obtenir_positions
+            )
+
+        except Exception as e:
+            print(
+                f"[HIGHLIGHT] Fallback : {e}",
+                flush=True
+            )
+
+            citations = generer_citations(
+                texte,
+                passages,
+                obtenir_positions
+            )
+
+    else:
+        # Conserver le fonctionnement existant
+        citations = generer_citations(
+            texte,
+            passages,
+            obtenir_positions
+        )
+
     return {
         "type": type_,
         "scope": scope,
-        "sections": [{"titre": f"Page {p['page']}", "pages": [p["page"]]} for p in passages],
+        "sections": [
+            {
+                "titre": f"Page {p['page']}",
+                "pages": [p["page"]]
+            }
+            for p in passages
+        ],
         "result": texte,
-        "citations": generer_citations(texte, passages, obtenir_positions),
+        "citations": citations,
     }
+
 
 
 # --------------------------------------------------------------- Résumé
@@ -159,6 +200,10 @@ def resumer_document(
         }
     nombre_caracteres = sum(len(p["texte"]) for p in passages)
 
+    # Larger completion budget for document summaries only
+    llm_resume = partial(llm, max_completion_tokens=3000)
+
+
     print(
         f"[SUMMARY DEBUG] Pages: {len(choisies)} | "
         f"Characters: {nombre_caracteres} | "
@@ -168,7 +213,7 @@ def resumer_document(
     )
 
     if sum(len(p["texte"]) for p in passages) <= MAX_CARACTERES:
-        texte = llm(
+        texte = llm_resume(
             f"Respond exclusively in {langues_llm[langue]}. " +
             "Résume ces extraits en 5 à 10 points clés, "
             "avec citations.\n\n" + _numeroter(passages),
@@ -177,7 +222,7 @@ def resumer_document(
     else:
         texte = _map_reduce(
             passages,
-            llm,
+            llm_resume,
             "Résume en points clés",
             systeme=systeme_resume,
             langue=langues_llm[langue]
@@ -364,11 +409,27 @@ def expliquer_section(document_id: str, section: str, rechercher, llm,
         return {"type": "explain", "scope": scope, "sections": [], "citations": [],
                 "result": "Section introuvable dans ce document."}
     passages = sorted(passages, key=lambda p: (p["page"], p["debut"]))  # ordre de lecture
+    
     texte = llm(
-        f"Explique de façon simple et pédagogique : « {section} ».\n"
-        "Structure : 1) idée principale 2) explication pas à pas 3) exemple si possible.\n"
-        "Si les extraits ne parlent pas de ce sujet, dis-le.\n\n" + _numeroter(passages),
-        SYSTEME)
+        f"Explique clairement et de manière pédagogique le sujet suivant : "
+        f"« {section} ».\n\n"
+        "Consignes :\n"
+        "- Réponds uniquement à partir des extraits fournis.\n"
+        "- Identifie les concepts réellement pertinents pour la question.\n"
+        "- Explique chaque concept simplement, avec un exemple si utile.\n"
+        "- Respecte le niveau de détail demandé par l'utilisateur.\n"
+        "- Si un nombre précis de points est demandé, respecte ce nombre.\n"
+        "- Utilise des titres Markdown sur des lignes séparées et des listes lisibles.\n"
+        "- Évite les tableaux Markdown et les développements inutiles.\n"
+        "- Ajoute les citations exactement au format [n].\n"
+        "- Ne crée aucune citation inexistante.\n"
+        "- Termine toutes les phrases et sections.\n"
+        "- Si les extraits sont insuffisants, indique-le clairement.\n\n"
+        "EXTRAITS :\n"
+        + _numeroter(passages),
+        SYSTEME
+    )
+
     return _resultat("explain", scope, passages, texte, obtenir_positions)
 
 
