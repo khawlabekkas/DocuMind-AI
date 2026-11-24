@@ -74,6 +74,18 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS idx_messages_conversation
 ON messages(conversation_id, id);
+CREATE TABLE IF NOT EXISTS ragas_evaluations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id INTEGER NOT NULL UNIQUE,
+    faithfulness REAL,
+    answer_relevancy REAL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    erreur TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (message_id)
+        REFERENCES messages(id)
+        ON DELETE CASCADE
+);
 
         """)
 

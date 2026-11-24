@@ -85,6 +85,9 @@ async def lifespan(app):
 
 
 app = FastAPI(title="DocuMind AI", lifespan=lifespan)
+from ragas_routes import router as ragas_router
+
+app.include_router(ragas_router)
 @app.middleware("http")
 async def mesurer_temps_reponse(request, call_next):
     debut = perf_counter()
@@ -568,7 +571,14 @@ def ask(q: Question):
                 "verdict": res.get("verdict"),
                 "refusal_reason": res.get("refusal_reason"),
                 **({"verification_origin": verification_origin}
-                   if verification_origin == "hallucination_guard" else {})
+                   if verification_origin == "hallucination_guard" else {}),
+                "retrieved_contexts": [
+                    p["texte"]
+                    for p in (res.get("passages") or [])
+                    if isinstance(p, dict)
+                    and isinstance(p.get("texte"), str)
+                    and p["texte"].strip()
+                ],
             }
         )
 

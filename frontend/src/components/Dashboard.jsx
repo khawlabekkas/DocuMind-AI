@@ -32,6 +32,7 @@ import {
   IconeChevron,
 } from "./Icones.jsx";
 import "./Dashboard.css";
+import RagasLive from "./RagasLive.jsx";
 
 // Chargé paresseusement, comme sur l'écran d'accueil du chatbot.
 const BrainScene = lazy(() => import("./BrainScene.jsx"));
@@ -718,6 +719,7 @@ export default function Dashboard({ onRetour }) {
         </section>
 
         <section ref={refRagas} className="documind-dashboard-section">
+          <RagasLive />
 
 <div className="documind-dashboard-card">
   <h2 className="documind-dashboard-section-title">
