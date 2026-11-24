@@ -877,4 +877,47 @@
 .documind-dashboard-ragas-main {
   margin-bottom: 28px;
 }
+/* =========================================
+   RECENT PDF DOCUMENTS — SCROLLBAR
+========================================= */
+
+.documind-dashboard-table-wrap {
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #7941a5 #190e25;
+}
+
+.documind-dashboard-table-wrap::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.documind-dashboard-table-wrap::-webkit-scrollbar-track {
+  background: #190e25;
+  border-radius: 10px;
+}
+
+.documind-dashboard-table-wrap::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    #a855f7,
+    #ec4899
+  );
+  border-radius: 10px;
+}
+
+.documind-dashboard-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #c084fc;
+}
+
+/* Fixed table header */
+
+.documind-dashboard-table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #211229;
+}
 

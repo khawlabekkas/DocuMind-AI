@@ -33,6 +33,7 @@ import {
 } from "./Icones.jsx";
 import "./Dashboard.css";
 import RagasLive from "./RagasLive.jsx";
+import GuardLive from "./GuardLive.jsx";
 
 // Chargé paresseusement, comme sur l'écran d'accueil du chatbot.
 const BrainScene = lazy(() => import("./BrainScene.jsx"));
@@ -803,72 +804,8 @@ export default function Dashboard({ onRetour }) {
         </section>
 
         <section ref={refGuard} className="documind-dashboard-section">
-          <div className="documind-dashboard-card">
-            <h2 className="documind-dashboard-section-title">
-              <span className="documind-dashboard-title-glyph"><IconeBouclier taille={18} /></span>
-              Hallucination Guard
-            </h2>
-
-            <div className="documind-dashboard-guard-summary">
-              <div className="documind-dashboard-guard-metric">
-                <strong>{tests.length}</strong>
-                <span>Tests exécutés</span>
-              </div>
-              <div className="documind-dashboard-guard-metric">
-                <strong>{reussis}</strong>
-                <span>Tests réussis</span>
-              </div>
-              <div className="documind-dashboard-guard-metric">
-                <strong>{tauxReussite === null ? "N/A" : `${tauxReussite}%`}</strong>
-                <span>Taux de réussite</span>
-              </div>
-            </div>
-
-            {tests.length > 0 && tests.length < 5 && (
-              <p className="documind-dashboard-guard-caveat">
-                ⚠�? Taux calculé sur seulement {tests.length} test(s) enregistré(s) —
-                ce n'est pas une garantie que le système ne génère jamais
-                d'hallucinations.
-              </p>
-            )}
-
-            {tests.length === 0 ? (
-              <p className="documind-dashboard-empty">
-                Aucun test du Hallucination Guard enregistré.
-              </p>
-            ) : (
-              tests.map((test, index) => (
-                <div className="documind-dashboard-guard-test" key={index}>
-                  <p>
-                    <strong>Question :</strong> {test.question}
-                  </p>
-                  <p>
-                    <strong>Comportement attendu :</strong>{" "}
-                    {test.expected_behavior}
-                  </p>
-                  <p>
-                    <strong>Résultat :</strong> {test.actual_status}
-                  </p>
-                  <p>
-                    <strong>Raison du refus :</strong>{" "}
-                    {test.refusal_reason || "Non renseignée"}
-                  </p>
-                  <span
-                    className={
-                      "documind-dashboard-guard-badge " +
-                      (String(test.test_passed).toLowerCase() === "true"
-                        ? "is-pass"
-                        : "is-fail")
-                    }
-                  >
-                    {String(test.test_passed).toLowerCase() === "true"
-                      ? "✓ Test réussi"
-                      : "✗ Test échoué"}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
+          <GuardLive />
+          
         </section>
 
         <section ref={refDocuments} className="documind-dashboard-section">

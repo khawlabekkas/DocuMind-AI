@@ -1,0 +1,251 @@
+.guard-live {
+  --guard-muted: #b9a6c4;
+  --guard-border: rgba(168, 85, 247, 0.22);
+}
+
+.guard-live-header,
+.guard-live-toolbar,
+.guard-live-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.guard-live-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.guard-live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #86efac;
+  font-size: 12px;
+}
+
+.guard-live-indicator > span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 10px #4ade80;
+}
+
+.guard-live-refresh,
+.guard-live-filters button {
+  padding: 9px 16px;
+  border: 1px solid var(--guard-border);
+  border-radius: 10px;
+  background: rgba(168, 85, 247, 0.08);
+  color: #e9d5ff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  transition: background 0.2s ease;
+}
+
+.guard-live-refresh:hover,
+.guard-live-filters button:hover,
+.guard-live-filters button.active {
+  background: rgba(168, 85, 247, 0.25);
+  border-color: #a855f7;
+}
+
+.guard-live-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.guard-live-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid var(--guard-border);
+  border-radius: 16px;
+  background: rgba(168, 85, 247, 0.055);
+}
+
+.guard-live-kpi strong {
+  color: #c084fc;
+  font-size: clamp(24px, 3vw, 36px);
+  font-weight: 700;
+}
+
+.guard-live-kpi span {
+  color: var(--guard-muted);
+  font-size: 13px;
+}
+
+.guard-live-chart-section {
+  padding: 24px;
+  border: 1px solid var(--guard-border);
+  border-radius: 18px;
+  margin: 24px 0;
+  background: rgba(168, 85, 247, 0.035);
+}
+
+.guard-live-chart {
+  position: relative;
+  height: 280px;
+  width: 100%;
+  max-width: 500px;
+  margin: 20px auto;
+}
+
+.guard-live-toolbar {
+  margin: 28px 0 16px;
+}
+
+.guard-live-toolbar h3 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.guard-live-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.guard-live-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 600px;
+  overflow-y: auto;
+  padding-right: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #7941a5 #190e25;
+}
+
+.guard-live-list::-webkit-scrollbar {
+  width: 7px;
+}
+
+.guard-live-list::-webkit-scrollbar-track {
+  background: #190e25;
+  border-radius: 10px;
+}
+
+.guard-live-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(#a855f7, #ec4899);
+  border-radius: 10px;
+}
+
+.guard-live-item {
+  padding: 20px;
+  border: 1px solid var(--guard-border);
+  border-radius: 16px;
+  background: rgba(168, 85, 247, 0.035);
+}
+
+.guard-live-item.blocked {
+  border-color: rgba(244, 114, 182, 0.25);
+}
+
+.guard-live-item h4 {
+  margin: 16px 0 8px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.guard-live-status {
+  display: inline-flex;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.guard-live-status.answered {
+  background: rgba(74, 222, 128, 0.09);
+  color: #86efac;
+}
+
+.guard-live-status.blocked {
+  background: rgba(244, 114, 182, 0.1);
+  color: #f9a8d4;
+}
+
+.guard-live-date,
+.guard-live-item-header small {
+  color: var(--guard-muted);
+  font-size: 12px;
+}
+
+.guard-live-reason {
+  margin-top: 16px;
+  padding: 14px;
+  border-left: 3px solid #f472b6;
+  border-radius: 8px;
+  background: rgba(244, 114, 182, 0.045);
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.guard-live-reason strong {
+  color: #f9a8d4;
+}
+
+.guard-live-reason p {
+  margin: 6px 0 0;
+}
+
+.guard-live-answer {
+  margin-top: 16px;
+  color: var(--guard-muted);
+  font-size: 13px;
+}
+
+.guard-live-answer summary {
+  cursor: pointer;
+}
+
+.guard-live-answer p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+
+.guard-live-note {
+  color: var(--guard-muted);
+  font-size: 12px;
+  line-height: 1.7;
+  margin-top: 18px;
+}
+
+.guard-live-error {
+  color: #fca5a5;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+@media (max-width: 1000px) {
+  .guard-live-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 500px) {
+  .guard-live-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .guard-live-chart-section {
+    padding: 14px;
+  }
+
+  .guard-live-chart {
+    height: 230px;
+  }
+}

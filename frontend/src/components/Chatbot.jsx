@@ -989,14 +989,42 @@ if (intention && intention.type !== "pdf") {
   <div className="menu-documents">
 
     {!afficherDocuments ? (
-      <div className="menu-options">
+      <div className="menu-options menu-options-modern">
+        <div className="document-menu-heading">
+          ESPACE DOCUMENTAIRE
+        </div>
+
         <button
           type="button"
           className="option-document"
           onClick={() => inputPDF.current?.click()}
         >
-          <span>📎</span>
-          <span>Ajouter des fichiers</span>
+          <span className="document-menu-icon upload-icon">
+            <svg
+              width="23"
+              height="23"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+              <path d="M14 2v6h6" />
+              <path d="M12 18v-7m-3 3 3-3 3 3" />
+            </svg>
+          </span>
+
+          <span className="document-menu-text">
+            <strong>Ajouter des fichiers</strong>
+            <small>Importer un nouveau PDF</small>
+          </span>
+
+          <span className="document-menu-arrow" aria-hidden="true">
+            ›
+          </span>
         </button>
 
         <button
@@ -1004,9 +1032,36 @@ if (intention && intention.type !== "pdf") {
           className="option-document"
           onClick={() => setAfficherDocuments(true)}
         >
-          <span>📁</span>
-          <span>Mes documents</span>
+          <span className="document-menu-icon library-icon">
+            <svg
+              width="23"
+              height="23"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M3 7V5a2 2 0 0 1 2-2h4l3 3h7a2 2 0 0 1 2 2v2" />
+              <path d="M3 7v12a2 2 0 0 0 2 2h14l3-11H6Z" />
+            </svg>
+          </span>
+
+          <span className="document-menu-text">
+            <strong>Mes documents</strong>
+            <small>Explorer votre bibliothèque PDF</small>
+          </span>
+
+          <span className="document-menu-arrow" aria-hidden="true">
+            ›
+          </span>
         </button>
+
+        <div className="document-menu-footer">
+          Documents PDF · DocuMind AI
+        </div>
       </div>
     ) : (
       <>

@@ -86,8 +86,11 @@ async def lifespan(app):
 
 app = FastAPI(title="DocuMind AI", lifespan=lifespan)
 from ragas_routes import router as ragas_router
+from guard_routes import router as guard_router
 
 app.include_router(ragas_router)
+app.include_router(guard_router)
+
 @app.middleware("http")
 async def mesurer_temps_reponse(request, call_next):
     debut = perf_counter()
